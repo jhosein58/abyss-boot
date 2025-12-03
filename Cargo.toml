@@ -1,0 +1,14 @@
+[workspace]
+resolver = "2"
+members = [
+    "abyss_lexer",
+]
+
+
+[package]
+name = "abyss"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+abyss_lexer = { path = "./abyss_lexer" }
