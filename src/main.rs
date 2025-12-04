@@ -1,22 +1,22 @@
+use abyss_lexer::{Lexer, cursor::Cursor, scanner::Scanner};
+
 fn main() {
     let input = r#"
-
-        fn main() {
-            let age = 9.5 * 2
-
-            println("")
-
-            print("   my age is: ")
-            println(age)
-
-            println("")
-        }
-
-
-    "#
+        ==
+"#
     .to_string();
 
     println!("Code: \n{}", input);
+
+    let lexer = Lexer::new(&input);
+
+    let mut tokens = vec![];
+
+    for token in lexer {
+        tokens.push(token);
+    }
+
+    dbg!(tokens);
 
     // let lexer = Lexer::new(input);
     // let mut parser = Parser::new(lexer);

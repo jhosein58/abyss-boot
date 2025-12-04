@@ -12,3 +12,10 @@ dependencies = [
 [[package]]
 name = "abyss_lexer"
 version = "0.1.0"
+
+[[package]]
+name = "abyss_parser"
+version = "0.1.0"
+dependencies = [
+ "abyss_lexer",
+]

@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
-    "abyss_lexer",
+    "abyss_lexer", "abyss_parser",
 ]
 
 
