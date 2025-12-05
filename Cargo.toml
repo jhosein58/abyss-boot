@@ -12,3 +12,4 @@ edition = "2024"
 
 [dependencies]
 abyss_lexer = { path = "./abyss_lexer" }
+abyss_parser = { path = "./abyss_parser" }

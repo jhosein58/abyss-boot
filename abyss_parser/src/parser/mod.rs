@@ -1,0 +1,139 @@
+pub mod func;
+use abyss_lexer::token::TokenKind;
+use colored::Colorize;
+use std::fmt::Write;
+
+use crate::{
+    ast::Program,
+    error::{ParseError, ParseErrorKind},
+    source_map::{SourceMap, Span},
+    stream::TokenStream,
+};
+
+pub struct Parser<'a> {
+    source: &'a str,
+    stream: TokenStream<'a>,
+    source_map: SourceMap,
+    errors: Vec<ParseError>,
+    recorded_span: Span,
+}
+
+impl<'a> Parser<'a> {
+    pub fn new(input: &'a str) -> Self {
+        Self {
+            source: input,
+            stream: TokenStream::new(input),
+            source_map: SourceMap::new(input),
+            errors: Vec::new(),
+            recorded_span: Span { start: 0, end: 0 },
+        }
+    }
+
+    pub fn mark_current_span(&mut self) {
+        self.recorded_span = self.stream.current_span()
+    }
+
+    pub fn emit_error(&mut self, kind: ParseErrorKind, span: Span) {
+        let message = kind.to_string();
+        self.errors.push(ParseError {
+            kind,
+            message,
+            pos: span,
+        });
+    }
+
+    pub fn emit_error_at_current(&mut self, kind: ParseErrorKind) {
+        let span = self.stream.current_span();
+        self.emit_error(kind, span);
+    }
+
+    pub fn errors(&self) -> &[ParseError] {
+        &self.errors
+    }
+
+    pub fn has_errors(&self) -> bool {
+        !self.errors.is_empty()
+    }
+
+    pub fn format_errors(&self, filename: &str) -> String {
+        let mut output = String::new();
+
+        for error in &self.errors {
+            let pos = self
+                .source_map
+                .position_from_span(&error.pos, self.source)
+                .unwrap();
+
+            let line_content = self.source.lines().nth(pos.line - 1).unwrap_or("");
+
+            let _ = writeln!(
+                &mut output,
+                "{}: {}",
+                "error".bright_red().bold(),
+                error.message.bold()
+            );
+
+            let line_num_str = pos.line.to_string();
+            let padding = " ".repeat(line_num_str.len());
+            let _ = writeln!(
+                &mut output,
+                "{} {}{}:{}:{}",
+                padding,
+                "-->".blue().bold(),
+                filename,
+                pos.line,
+                pos.column
+            );
+
+            let _ = writeln!(&mut output, "{} {}", padding, "|".blue().bold());
+
+            let _ = writeln!(
+                &mut output,
+                "{} {} {}",
+                line_num_str.blue().bold(),
+                "|".blue().bold(),
+                line_content
+            );
+
+            let col_padding = if pos.column > 0 {
+                " ".repeat(pos.column - 1)
+            } else {
+                String::new()
+            };
+
+            let caret_len = if error.pos.len() > 0 {
+                error.pos.len()
+            } else {
+                1
+            };
+            let carets = "^".repeat(caret_len);
+
+            let _ = writeln!(
+                &mut output,
+                "{} {} {}{}",
+                padding,
+                "|".blue().bold(),
+                col_padding,
+                carets.bright_red().bold()
+            );
+
+            let _ = writeln!(&mut output, "");
+        }
+
+        output
+    }
+
+    pub fn parse_program(&mut self) -> Program {
+        let mut functions = vec![];
+
+        while self.stream.current().kind != TokenKind::Eof {
+            if let Some(func) = self.parse_function() {
+                functions.push(func);
+            }
+        }
+
+        Program {
+            functions: functions,
+        }
+    }
+}

@@ -1,3 +1,5 @@
+use core::fmt::{self, Display, Formatter, write};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RawTokenKind {
     Comment,
@@ -118,6 +120,50 @@ impl TokenKind {
     }
 }
 
+impl Display for TokenKind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            TokenKind::Comment => write!(f, "Comment"),
+            TokenKind::Whitespace => write!(f, "Whitespace"),
+            TokenKind::Newline => write!(f, "Newline"),
+            TokenKind::Ident => write!(f, "Ident"),
+            TokenKind::Literal(lit) => write!(f, "Literal({})", lit),
+            TokenKind::Let => write!(f, "'let'"),
+            TokenKind::Fn => write!(f, "'fn'"),
+            TokenKind::Ret => write!(f, "'ret'"),
+            TokenKind::If => write!(f, "'if'"),
+            TokenKind::While => write!(f, "'while'"),
+            TokenKind::As => write!(f, "'as'"),
+            TokenKind::And => write!(f, "'and'"),
+            TokenKind::Or => write!(f, "'or'"),
+            TokenKind::Not => write!(f, "'not'"),
+            TokenKind::Plus => write!(f, "'+'"),
+            TokenKind::Minus => write!(f, "'-'"),
+            TokenKind::Star => write!(f, "'*'"),
+            TokenKind::Slash => write!(f, "'/'"),
+            TokenKind::Percent => write!(f, "'%'"),
+            TokenKind::Comma => write!(f, "','"),
+            TokenKind::Colon => write!(f, "':'"),
+            TokenKind::Dot => write!(f, "'.'"),
+            TokenKind::OParen => write!(f, "'('"),
+            TokenKind::CParen => write!(f, "')'"),
+            TokenKind::OBrace => write!(f, "'{{'"),
+            TokenKind::CBrace => write!(f, "'}}'"),
+            TokenKind::OBracket => write!(f, "'['"),
+            TokenKind::CBracket => write!(f, "']'"),
+            TokenKind::Assign => write!(f, "'='"),
+            TokenKind::EqEq => write!(f, "'=='"),
+            TokenKind::BangEq => write!(f, "'!='"),
+            TokenKind::Lt => write!(f, "'<'"),
+            TokenKind::LtEq => write!(f, "'<='"),
+            TokenKind::Gt => write!(f, "'>'"),
+            TokenKind::GtEq => write!(f, "'>='"),
+            TokenKind::Unknown => write!(f, "Unknown"),
+            TokenKind::Eof => write!(f, "Eof"),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum LiteralKind {
     Int,
@@ -125,6 +171,18 @@ pub enum LiteralKind {
     Str,
     Char,
     Bool,
+}
+
+impl Display for LiteralKind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            LiteralKind::Int => write!(f, "int"),
+            LiteralKind::Float => write!(f, "float"),
+            LiteralKind::Str => write!(f, "string"),
+            LiteralKind::Char => write!(f, "char"),
+            LiteralKind::Bool => writeln!(f, "bool"),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -136,5 +194,9 @@ pub struct Token {
 impl Token {
     pub fn new(kind: TokenKind, len: usize) -> Self {
         Self { kind, len }
+    }
+
+    pub fn dummy() -> Self {
+        Self::new(TokenKind::Unknown, 0)
     }
 }

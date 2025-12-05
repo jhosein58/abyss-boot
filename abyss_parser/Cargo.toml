@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 abyss_lexer = { path = "../abyss_lexer" }
+colored = "3.0.0"

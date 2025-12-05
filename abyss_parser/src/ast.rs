@@ -1,3 +1,6 @@
+use crate::source_map::Span;
+
+#[derive(Debug)]
 pub enum Expr {
     Lit(Lit),
     Ident(Ident),
@@ -11,23 +14,21 @@ pub enum Expr {
     Block(BlockExpr),
     If(IfExpr),
     While(WhileExpr),
+    Err,
 }
 
-pub struct Span {
-    pub start: usize,
-    pub end: usize,
-}
-
+#[derive(Debug)]
 pub struct Ident {
     pub name: String,
     pub span: Span,
 }
 
+#[derive(Debug)]
 pub enum Type {
     Named(Ident),
     Pointer(Box<Type>),
 }
-
+#[derive(Debug)]
 pub enum LitKind {
     Int { value: u128, suffix: Option<Type> },
 
@@ -40,11 +41,13 @@ pub enum LitKind {
     Bool(bool),
 }
 
+#[derive(Debug)]
 pub struct Lit {
     pub kind: LitKind,
     pub span: Span,
 }
 
+#[derive(Debug)]
 pub enum BinaryOp {
     Add, // +
     Sub, // -
@@ -61,6 +64,7 @@ pub enum BinaryOp {
     Or,  // or
 }
 
+#[derive(Debug)]
 pub enum UnaryOp {
     Neg,    // -x
     Not,    // not x
@@ -68,6 +72,7 @@ pub enum UnaryOp {
     AddrOf, // &x
 }
 
+#[derive(Debug)]
 pub struct BinaryExpr {
     pub left: Box<Expr>,
     pub operator: BinaryOp,
@@ -75,23 +80,27 @@ pub struct BinaryExpr {
     pub span: Span,
 }
 
+#[derive(Debug)]
 pub struct UnaryExpr {
     pub operator: UnaryOp,
     pub operand: Box<Expr>,
     pub span: Span,
 }
 
+#[derive(Debug)]
 pub struct GroupedExpr {
     pub expr: Box<Expr>,
     pub span: Span,
 }
 
+#[derive(Debug)]
 pub struct CallExpr {
     pub callee: Box<Expr>,
     pub args: Vec<Expr>,
     pub span: Span,
 }
 
+#[derive(Debug)]
 pub struct LetExpr {
     pub name: Ident,
     pub value: Option<Box<Expr>>,
@@ -99,22 +108,26 @@ pub struct LetExpr {
     pub span: Span,
 }
 
+#[derive(Debug)]
 pub struct AssignExpr {
     pub target: Box<Expr>,
     pub value: Box<Expr>,
     pub span: Span,
 }
 
+#[derive(Debug)]
 pub struct ReturnExpr {
     pub value: Option<Box<Expr>>,
     pub span: Span,
 }
 
+#[derive(Debug)]
 pub struct BlockExpr {
     pub scope: Vec<Expr>,
     pub span: Span,
 }
 
+#[derive(Debug)]
 pub struct IfExpr {
     pub condition: Box<Expr>,
     pub then_branch: Box<Expr>,
@@ -122,17 +135,20 @@ pub struct IfExpr {
     pub span: Span,
 }
 
+#[derive(Debug)]
 pub struct WhileExpr {
     pub condition: Box<Expr>,
     pub body: Box<Expr>,
     pub span: Span,
 }
 
+#[derive(Debug)]
 pub struct FunctionParam {
     pub name: Ident,
     pub ty: Type,
 }
 
+#[derive(Debug)]
 pub struct Function {
     pub name: Ident,
     pub params: Vec<FunctionParam>,
@@ -140,6 +156,7 @@ pub struct Function {
     pub body: BlockExpr,
 }
 
+#[derive(Debug)]
 pub struct Program {
     pub functions: Vec<Function>,
 }

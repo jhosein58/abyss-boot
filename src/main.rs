@@ -1,22 +1,17 @@
-use abyss_lexer::{Lexer, cursor::Cursor, scanner::Scanner};
+use abyss_parser::{parser::Parser, stream::TokenStream};
 
 fn main() {
     let input = r#"
-        ==
-"#
-    .to_string();
+        abc
+       "#;
 
     println!("Code: \n{}", input);
 
-    let lexer = Lexer::new(&input);
+    let mut parser = Parser::new(input);
+    let program = parser.parse_program();
 
-    let mut tokens = vec![];
-
-    for token in lexer {
-        tokens.push(token);
-    }
-
-    dbg!(tokens);
+    println!("{}", parser.format_errors("test.ab"));
+    dbg!(program);
 
     // let lexer = Lexer::new(input);
     // let mut parser = Parser::new(lexer);
