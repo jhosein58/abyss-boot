@@ -1,53 +1,30 @@
-use crate::source_map::Span;
+#[derive(Debug)]
+pub enum Stmt {
+    Let(String, Expr),
+    Assign(String, Expr),
+    Ret(Expr),
+    If(Expr, Vec<Stmt>, Option<Vec<Stmt>>),
+    While(Expr, Vec<Stmt>),
+    Expr(Expr),
+}
 
 #[derive(Debug)]
 pub enum Expr {
     Lit(Lit),
-    Ident(Ident),
-    Binary(BinaryExpr),
-    Unary(UnaryExpr),
-    Grouped(GroupedExpr),
-    Call(CallExpr),
-    Let(LetExpr),
-    Assign(AssignExpr),
-    Return(ReturnExpr),
-    Block(BlockExpr),
-    If(IfExpr),
-    While(WhileExpr),
-    Err,
+    Ident(String),
+    Binary(Box<Expr>, BinaryOp, Box<Expr>),
+    Unary(UnaryOp, Box<Expr>),
+    Call(String, Vec<Expr>),
 }
 
 #[derive(Debug)]
-pub struct Ident {
-    pub name: String,
-    pub span: Span,
-}
-
-#[derive(Debug)]
-pub enum Type {
-    Named(Ident),
-    Pointer(Box<Type>),
-}
-#[derive(Debug)]
-pub enum LitKind {
-    Int { value: u128, suffix: Option<Type> },
-
-    Float { value: String, suffix: Option<Type> },
-
-    String(String),
-
-    Char(char),
-
+pub enum Lit {
+    Int(i64),
+    Float(f64),
     Bool(bool),
 }
 
-#[derive(Debug)]
-pub struct Lit {
-    pub kind: LitKind,
-    pub span: Span,
-}
-
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum BinaryOp {
     Add, // +
     Sub, // -
@@ -64,96 +41,18 @@ pub enum BinaryOp {
     Or,  // or
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum UnaryOp {
-    Neg,    // -x
-    Not,    // not x
-    Deref,  // *x
-    AddrOf, // &x
-}
-
-#[derive(Debug)]
-pub struct BinaryExpr {
-    pub left: Box<Expr>,
-    pub operator: BinaryOp,
-    pub right: Box<Expr>,
-    pub span: Span,
-}
-
-#[derive(Debug)]
-pub struct UnaryExpr {
-    pub operator: UnaryOp,
-    pub operand: Box<Expr>,
-    pub span: Span,
-}
-
-#[derive(Debug)]
-pub struct GroupedExpr {
-    pub expr: Box<Expr>,
-    pub span: Span,
-}
-
-#[derive(Debug)]
-pub struct CallExpr {
-    pub callee: Box<Expr>,
-    pub args: Vec<Expr>,
-    pub span: Span,
-}
-
-#[derive(Debug)]
-pub struct LetExpr {
-    pub name: Ident,
-    pub value: Option<Box<Expr>>,
-    pub ty: Option<Type>,
-    pub span: Span,
-}
-
-#[derive(Debug)]
-pub struct AssignExpr {
-    pub target: Box<Expr>,
-    pub value: Box<Expr>,
-    pub span: Span,
-}
-
-#[derive(Debug)]
-pub struct ReturnExpr {
-    pub value: Option<Box<Expr>>,
-    pub span: Span,
-}
-
-#[derive(Debug)]
-pub struct BlockExpr {
-    pub scope: Vec<Expr>,
-    pub span: Span,
-}
-
-#[derive(Debug)]
-pub struct IfExpr {
-    pub condition: Box<Expr>,
-    pub then_branch: Box<Expr>,
-    pub else_branch: Option<Box<Expr>>,
-    pub span: Span,
-}
-
-#[derive(Debug)]
-pub struct WhileExpr {
-    pub condition: Box<Expr>,
-    pub body: Box<Expr>,
-    pub span: Span,
-}
-
-#[derive(Debug)]
-pub struct FunctionParam {
-    pub name: Ident,
-    pub ty: Type,
+    Neg, // -x
+    Not, // not x
 }
 
 #[derive(Debug)]
 pub struct Function {
-    pub name: Ident,
-    pub params: Vec<FunctionParam>,
-    pub return_type: Option<Type>,
-    pub body: BlockExpr,
+    pub name: String,
+    pub params: Vec<(String, String)>,
+    pub return_type: Option<String>,
+    pub body: Vec<Stmt>,
 }
 
 #[derive(Debug)]

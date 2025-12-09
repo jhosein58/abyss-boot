@@ -1,14 +1,9 @@
 use abyss_lexer::token::TokenKind;
 
-use crate::{
-    ast::{BlockExpr, Function, FunctionParam, Ident, Type},
-    error::ParseErrorKind,
-    parser::Parser,
-    source_map::Span,
-};
+use crate::{ast::Function, error::ParseErrorKind, parser::Parser};
 
 impl<'a> Parser<'a> {
-    fn synchronize(&mut self) {
+    fn synchronize_func(&mut self) {
         self.stream.advance();
 
         while !self.stream.is_at_end() {
@@ -24,13 +19,13 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn consume(&mut self, expected: TokenKind) -> Option<()> {
+    fn consume_func(&mut self, expected: TokenKind) -> Option<()> {
         if !self.stream.consume(expected) {
             self.emit_error_at_current(ParseErrorKind::UnexpectedToken {
                 expected: expected,
                 found: self.stream.current().kind,
             });
-            self.synchronize();
+            self.synchronize_func();
             return None;
         }
         Some(())
@@ -42,18 +37,16 @@ impl<'a> Parser<'a> {
                 expected: expected,
                 found: self.stream.current().kind,
             });
-            self.synchronize();
+            self.synchronize_func();
             return None;
         }
         Some(())
     }
 
-    fn read_ident(&mut self) -> Option<Ident> {
+    fn read_ident(&mut self) -> Option<String> {
         self.expect(TokenKind::Ident)?;
-        let ident = Ident {
-            name: self.stream.current_lit().to_string(),
-            span: self.stream.current_span(),
-        };
+        let ident = self.stream.current_lit().to_string();
+
         self.advance();
         Some(ident)
     }
@@ -66,50 +59,39 @@ impl<'a> Parser<'a> {
 
         self.stream.consume(TokenKind::Newline);
 
-        self.consume(TokenKind::Fn)?;
+        self.consume_func(TokenKind::Fn)?;
 
         let function_ident = self.read_ident()?;
 
         let args = self.parse_fucn_args()?;
 
         let return_type = self.parse_return_type();
+        self.optional(TokenKind::Newline);
 
-        self.consume(TokenKind::OBrace)?;
-        self.advance();
-        self.consume(TokenKind::CBrace)?;
+        let body = if let Some(body) = self.parse_block() {
+            body
+        } else {
+            self.synchronize_func();
+            return None;
+        };
 
         Some(Function {
             name: function_ident,
             params: args,
             return_type,
-            body: BlockExpr {
-                scope: vec![],
-                span: Span::new(0, 0),
-            },
+            body,
         })
     }
 
-    fn parse_type(&mut self) -> Option<Type> {
-        let mut is_ptr = false;
-
-        if self.stream.is(TokenKind::Amp) {
-            is_ptr = true;
-            self.advance();
-        }
-
-        let ty_ident = Type::Named(self.read_ident()?);
-
-        Some(if is_ptr {
-            Type::Pointer(Box::new(ty_ident))
-        } else {
-            ty_ident
-        })
+    fn parse_type(&mut self) -> Option<String> {
+        let ty_ident = self.read_ident()?;
+        Some(ty_ident)
     }
 
-    pub fn parse_fucn_args(&mut self) -> Option<Vec<FunctionParam>> {
+    pub fn parse_fucn_args(&mut self) -> Option<Vec<(String, String)>> {
         let mut args = Vec::new();
 
-        self.consume(TokenKind::OParen)?;
+        self.consume_func(TokenKind::OParen)?;
 
         if self.stream.is(TokenKind::CParen) {
             self.advance();
@@ -119,24 +101,21 @@ impl<'a> Parser<'a> {
         while self.stream.is(TokenKind::Ident) {
             let arg_ident = self.read_ident()?;
 
-            self.consume(TokenKind::Colon)?;
+            self.consume_func(TokenKind::Colon)?;
 
-            args.push(FunctionParam {
-                name: arg_ident,
-                ty: self.parse_type()?,
-            });
+            args.push((arg_ident, self.parse_type()?));
 
             if self.stream.is(TokenKind::Comma) {
                 self.advance();
             }
         }
 
-        self.consume(TokenKind::CParen)?;
+        self.consume_func(TokenKind::CParen)?;
 
         Some(args)
     }
 
-    pub fn parse_return_type(&mut self) -> Option<Type> {
+    pub fn parse_return_type(&mut self) -> Option<String> {
         if self.stream.is(TokenKind::Colon) {
             self.advance();
             self.parse_type()

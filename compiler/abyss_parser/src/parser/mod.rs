@@ -1,4 +1,3 @@
-pub mod func;
 use abyss_lexer::token::TokenKind;
 use colored::Colorize;
 use std::fmt::Write;
@@ -9,6 +8,10 @@ use crate::{
     source_map::{SourceMap, Span},
     stream::TokenStream,
 };
+
+pub mod block;
+pub mod expr;
+pub mod func;
 
 pub struct Parser<'a> {
     source: &'a str,
@@ -147,5 +150,54 @@ impl<'a> Parser<'a> {
         Program {
             functions: functions,
         }
+    }
+
+    fn optional(&mut self, kind: TokenKind) {
+        if self.stream.is(kind) {
+            self.advance();
+        }
+    }
+
+    pub fn synchronize(&mut self) {
+        self.stream.advance();
+
+        while !self.stream.is_at_end() {
+            let kind = self.stream.current().kind;
+
+            if kind == TokenKind::Newline {
+                self.stream.advance();
+                return;
+            }
+
+            match kind {
+                TokenKind::Fn
+                | TokenKind::Let
+                | TokenKind::If
+                | TokenKind::While
+                | TokenKind::Ret => {
+                    return;
+                }
+
+                TokenKind::CBrace => {
+                    return;
+                }
+
+                _ => {}
+            }
+
+            self.stream.advance();
+        }
+    }
+
+    fn consume(&mut self, expected: TokenKind) -> Option<()> {
+        if !self.stream.consume(expected) {
+            self.emit_error_at_current(ParseErrorKind::UnexpectedToken {
+                expected: expected,
+                found: self.stream.current().kind,
+            });
+            self.synchronize();
+            return None;
+        }
+        Some(())
     }
 }
