@@ -168,8 +168,8 @@ impl<'a, T: Target> Director<'a, T> {
 
     fn map_type(&self, type_str: &str) -> Type {
         match type_str {
-            "i64" | "int" => Type::Int,
-            "f64" | "float" => Type::Float,
+            "i" | "int" => Type::Int,
+            "f" | "float" => Type::Float,
             "bool" => Type::Bool,
             "void" => Type::Void,
             _ => panic!("Unknown type: {}", type_str),

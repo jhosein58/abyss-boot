@@ -1,0 +1,7 @@
+fn main(): i {
+
+    while 1 == 1 {
+       print_i(10)
+    }
+    ret 0
+}

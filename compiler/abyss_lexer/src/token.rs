@@ -44,6 +44,7 @@ pub enum TokenKind {
     Fn,    // fn
     Ret,   // ret
     If,    // if
+    Else,  // else
     While, // while
     As,    // as
     And,   // and
@@ -58,6 +59,7 @@ pub enum TokenKind {
     Amp,      // &
     Comma,    // ,
     Colon,    // :
+    Semi,     // ;
     Dot,      // .
     OParen,   // (
     CParen,   // )
@@ -84,6 +86,7 @@ impl TokenKind {
             "fn" => TokenKind::Fn,
             "ret" => TokenKind::Ret,
             "if" => TokenKind::If,
+            "else" => TokenKind::Else,
             "while" => TokenKind::While,
             "and" => TokenKind::And,
             "or" => TokenKind::Or,
@@ -103,6 +106,7 @@ impl TokenKind {
             "&" => TokenKind::Amp,
             "," => TokenKind::Comma,
             ":" => TokenKind::Colon,
+            ";" => TokenKind::Semi,
             "." => TokenKind::Dot,
             "(" => TokenKind::OParen,
             ")" => TokenKind::CParen,
@@ -134,6 +138,7 @@ impl Display for TokenKind {
             TokenKind::Fn => write!(f, "'fn'"),
             TokenKind::Ret => write!(f, "'ret'"),
             TokenKind::If => write!(f, "'if'"),
+            TokenKind::Else => write!(f, "'else'"),
             TokenKind::While => write!(f, "'while'"),
             TokenKind::As => write!(f, "'as'"),
             TokenKind::And => write!(f, "'and'"),
@@ -147,6 +152,7 @@ impl Display for TokenKind {
             TokenKind::Amp => write!(f, "'&'"),
             TokenKind::Comma => write!(f, "','"),
             TokenKind::Colon => write!(f, "':'"),
+            TokenKind::Semi => write!(f, "';'"),
             TokenKind::Dot => write!(f, "'.'"),
             TokenKind::OParen => write!(f, "'('"),
             TokenKind::CParen => write!(f, "')'"),

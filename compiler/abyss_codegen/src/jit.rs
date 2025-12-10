@@ -233,12 +233,18 @@ impl Target for CraneliftTarget {
         let builder = self.builder.as_mut().unwrap();
         builder.ins().jump(target_block, &[]);
     }
-
     fn branch(&mut self, condition: Self::Value, then_block: Self::Block, else_block: Self::Block) {
         let builder = self.builder.as_mut().unwrap();
-        builder
-            .ins()
-            .brif(condition, then_block, &[], else_block, &[]);
+        let ty = builder.func.dfg.value_type(condition);
+
+        let cond = if ty.is_float() {
+            let zero = builder.ins().f64const(0.0);
+            builder.ins().fcmp(FloatCC::NotEqual, condition, zero)
+        } else {
+            condition
+        };
+
+        builder.ins().brif(cond, then_block, &[], else_block, &[]);
     }
 
     fn return_value(&mut self, value: Self::Value) {
@@ -274,7 +280,6 @@ impl Target for CraneliftTarget {
             .expect(&format!("Variable {} not found", name));
         builder.use_var(var)
     }
-
     fn translate_binary_op(
         &mut self,
         op: BinaryOp,
@@ -282,23 +287,88 @@ impl Target for CraneliftTarget {
         rhs: Self::Value,
     ) -> Self::Value {
         let builder = self.builder.as_mut().unwrap();
+        let lhs_ty = builder.func.dfg.value_type(lhs);
 
         match op {
-            BinaryOp::Add => builder.ins().iadd(lhs, rhs),
-            BinaryOp::Sub => builder.ins().isub(lhs, rhs),
-            BinaryOp::Mul => builder.ins().imul(lhs, rhs),
-            BinaryOp::Div => builder.ins().sdiv(lhs, rhs),
-            BinaryOp::Mod => builder.ins().srem(lhs, rhs),
-
-            BinaryOp::Eq => builder.ins().icmp(IntCC::Equal, lhs, rhs),
-            BinaryOp::Neq => builder.ins().icmp(IntCC::NotEqual, lhs, rhs),
-            BinaryOp::Lt => builder.ins().icmp(IntCC::SignedLessThan, lhs, rhs),
-            BinaryOp::Gt => builder.ins().icmp(IntCC::SignedGreaterThan, lhs, rhs),
-            BinaryOp::Lte => builder.ins().icmp(IntCC::SignedLessThanOrEqual, lhs, rhs),
-            BinaryOp::Gte => builder
-                .ins()
-                .icmp(IntCC::SignedGreaterThanOrEqual, lhs, rhs),
-
+            BinaryOp::Add => {
+                if lhs_ty.is_float() {
+                    builder.ins().fadd(lhs, rhs)
+                } else {
+                    builder.ins().iadd(lhs, rhs)
+                }
+            }
+            BinaryOp::Sub => {
+                if lhs_ty.is_float() {
+                    builder.ins().fsub(lhs, rhs)
+                } else {
+                    builder.ins().isub(lhs, rhs)
+                }
+            }
+            BinaryOp::Mul => {
+                if lhs_ty.is_float() {
+                    builder.ins().fmul(lhs, rhs)
+                } else {
+                    builder.ins().imul(lhs, rhs)
+                }
+            }
+            BinaryOp::Div => {
+                if lhs_ty.is_float() {
+                    builder.ins().fdiv(lhs, rhs)
+                } else {
+                    builder.ins().sdiv(lhs, rhs)
+                }
+            }
+            BinaryOp::Mod => {
+                if lhs_ty.is_float() {
+                    panic!("float mod not supported")
+                } else {
+                    builder.ins().srem(lhs, rhs)
+                }
+            }
+            BinaryOp::Eq => {
+                if lhs_ty.is_float() {
+                    builder.ins().fcmp(FloatCC::Equal, lhs, rhs)
+                } else {
+                    builder.ins().icmp(IntCC::Equal, lhs, rhs)
+                }
+            }
+            BinaryOp::Neq => {
+                if lhs_ty.is_float() {
+                    builder.ins().fcmp(FloatCC::NotEqual, lhs, rhs)
+                } else {
+                    builder.ins().icmp(IntCC::NotEqual, lhs, rhs)
+                }
+            }
+            BinaryOp::Lt => {
+                if lhs_ty.is_float() {
+                    builder.ins().fcmp(FloatCC::LessThan, lhs, rhs)
+                } else {
+                    builder.ins().icmp(IntCC::SignedLessThan, lhs, rhs)
+                }
+            }
+            BinaryOp::Gt => {
+                if lhs_ty.is_float() {
+                    builder.ins().fcmp(FloatCC::GreaterThan, lhs, rhs)
+                } else {
+                    builder.ins().icmp(IntCC::SignedGreaterThan, lhs, rhs)
+                }
+            }
+            BinaryOp::Lte => {
+                if lhs_ty.is_float() {
+                    builder.ins().fcmp(FloatCC::LessThanOrEqual, lhs, rhs)
+                } else {
+                    builder.ins().icmp(IntCC::SignedLessThanOrEqual, lhs, rhs)
+                }
+            }
+            BinaryOp::Gte => {
+                if lhs_ty.is_float() {
+                    builder.ins().fcmp(FloatCC::GreaterThanOrEqual, lhs, rhs)
+                } else {
+                    builder
+                        .ins()
+                        .icmp(IntCC::SignedGreaterThanOrEqual, lhs, rhs)
+                }
+            }
             BinaryOp::And => builder.ins().band(lhs, rhs),
             BinaryOp::Or => builder.ins().bor(lhs, rhs),
         }
@@ -306,8 +376,16 @@ impl Target for CraneliftTarget {
 
     fn translate_unary_op(&mut self, op: UnaryOp, value: Self::Value) -> Self::Value {
         let builder = self.builder.as_mut().unwrap();
+        let ty = builder.func.dfg.value_type(value);
+
         match op {
-            UnaryOp::Neg => builder.ins().ineg(value),
+            UnaryOp::Neg => {
+                if ty.is_float() {
+                    builder.ins().fneg(value)
+                } else {
+                    builder.ins().ineg(value)
+                }
+            }
             UnaryOp::Not => {
                 let one = builder.ins().iconst(types::I8, 1);
                 builder.ins().bxor(value, one)

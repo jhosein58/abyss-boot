@@ -12,6 +12,7 @@ use crate::{
 pub mod block;
 pub mod expr;
 pub mod func;
+pub mod stmt;
 
 pub struct Parser<'a> {
     source: &'a str,

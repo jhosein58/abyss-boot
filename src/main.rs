@@ -1,62 +1,51 @@
+use std::{fs, io::Read, time::Instant};
+
 use abyss_codegen::{
     director::Director,
     jit::CraneliftTarget,
     target::{Target, Type},
 };
-use abyss_parser::ast::{BinaryOp, Expr, Function, Lit, Program, Stmt};
+use abyss_parser::parser::Parser;
 
-pub unsafe extern "C" fn print_num(n: i64) {
-    print!("\rCounter: {}", n);
-    use std::io::Write;
-    std::io::stdout().flush().unwrap();
+pub unsafe extern "C" fn print_i(n: i64) {
+    println!("{}", n);
+}
 
-    std::thread::sleep(std::time::Duration::from_millis(50));
+pub unsafe extern "C" fn print_f(n: f64) {
+    println!("{}", n);
 }
 
 fn main() {
-    let symbols = [("print_num", print_num as *const u8)];
-    let mut target = CraneliftTarget::new(&symbols);
-    target.declare_extern_function("print_num", &[("n".to_string(), Type::Int)], Type::Void);
+    let mut input = String::new();
+    fs::File::open("main.a")
+        .unwrap()
+        .read_to_string(&mut input)
+        .unwrap();
 
-    let main_body = vec![
-        // counter = 0
-        Stmt::Let("counter".to_string(), Expr::Lit(Lit::Int(0))),
-        // while (true)
-        Stmt::While(
-            Expr::Lit(Lit::Bool(true)),
-            vec![
-                // counter = counter + 1
-                Stmt::Assign(
-                    "counter".to_string(),
-                    Expr::Binary(
-                        Box::new(Expr::Ident("counter".to_string())),
-                        BinaryOp::Add,
-                        Box::new(Expr::Lit(Lit::Int(1))),
-                    ),
-                ),
-                // print_num(counter)
-                Stmt::Expr(Expr::Call(
-                    "print_num".to_string(),
-                    vec![Expr::Ident("counter".to_string())],
-                )),
-            ],
-        ),
+    println!("Code:\n{}", input);
+
+    println!("Compiling...");
+
+    let t = Instant::now();
+
+    let symbols = [
+        ("print_i", print_i as *const u8),
+        ("print_f", print_f as *const u8),
     ];
-
-    let program = Program {
-        functions: vec![Function {
-            name: "main".to_string(),
-            params: vec![],
-            return_type: Some("void".to_string()),
-            body: main_body,
-        }],
-    };
+    let mut target = CraneliftTarget::new(&symbols);
+    target.declare_extern_function("print_i", &[("n".to_string(), Type::Int)], Type::Void);
+    target.declare_extern_function("print_f", &[("n".to_string(), Type::Float)], Type::Void);
 
     let mut director = Director::new(&mut target);
 
-    println!("Compiling...");
+    let mut parser = Parser::new(&input);
+    let program = parser.parse_program();
+    println!("{}", parser.format_errors("test.a"));
+    //dbg!(&program);
     director.process_program(&program);
 
+    println!("Finished in: {}ms", t.elapsed().as_millis());
     println!("Running...\n");
     let _ = target.run_fn("main");
+    //println!("\n{}\n", res.unwrap());
 }
