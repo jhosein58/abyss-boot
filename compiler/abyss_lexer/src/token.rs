@@ -46,6 +46,8 @@ pub enum TokenKind {
     If,    // if
     Else,  // else
     While, // while
+    For,   // for
+    In,    // in
     As,    // as
     And,   // and
     Or,    // or
@@ -74,6 +76,8 @@ pub enum TokenKind {
     LtEq,     // <=
     Gt,       // >
     GtEq,     // >=
+    RArrow,   // ->
+    REqArrow, // =>
 
     Unknown,
     Eof,
@@ -88,6 +92,8 @@ impl TokenKind {
             "if" => TokenKind::If,
             "else" => TokenKind::Else,
             "while" => TokenKind::While,
+            "for" => TokenKind::For,
+            "in" => TokenKind::In,
             "and" => TokenKind::And,
             "or" => TokenKind::Or,
             "not" => TokenKind::Not,
@@ -121,6 +127,9 @@ impl TokenKind {
             "<=" => TokenKind::LtEq,
             ">" => TokenKind::Gt,
             ">=" => TokenKind::GtEq,
+            "->" => TokenKind::RArrow,
+            "=>" => TokenKind::REqArrow,
+
             _ => TokenKind::Unknown,
         }
     }
@@ -140,6 +149,8 @@ impl Display for TokenKind {
             TokenKind::If => write!(f, "'if'"),
             TokenKind::Else => write!(f, "'else'"),
             TokenKind::While => write!(f, "'while'"),
+            TokenKind::For => write!(f, "'for'"),
+            TokenKind::In => write!(f, "'in'"),
             TokenKind::As => write!(f, "'as'"),
             TokenKind::And => write!(f, "'and'"),
             TokenKind::Or => write!(f, "'or'"),
@@ -167,6 +178,8 @@ impl Display for TokenKind {
             TokenKind::LtEq => write!(f, "'<='"),
             TokenKind::Gt => write!(f, "'>'"),
             TokenKind::GtEq => write!(f, "'>='"),
+            TokenKind::RArrow => write!(f, "'->'"),
+            TokenKind::REqArrow => write!(f, "'=>'"),
             TokenKind::Unknown => write!(f, "Unknown"),
             TokenKind::Eof => write!(f, "Eof"),
         }

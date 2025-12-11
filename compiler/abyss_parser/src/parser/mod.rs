@@ -20,6 +20,7 @@ pub struct Parser<'a> {
     source_map: SourceMap,
     errors: Vec<ParseError>,
     recorded_span: Span,
+    counter: u32,
 }
 
 impl<'a> Parser<'a> {
@@ -30,6 +31,7 @@ impl<'a> Parser<'a> {
             source_map: SourceMap::new(input),
             errors: Vec::new(),
             recorded_span: Span { start: 0, end: 0 },
+            counter: 0,
         }
     }
 
@@ -175,6 +177,7 @@ impl<'a> Parser<'a> {
                 | TokenKind::Let
                 | TokenKind::If
                 | TokenKind::While
+                | TokenKind::For
                 | TokenKind::Ret => {
                     return;
                 }
@@ -200,5 +203,15 @@ impl<'a> Parser<'a> {
             return None;
         }
         Some(())
+    }
+
+    fn get_unique_identifier(&mut self) -> String {
+        let id = format!("__abyss_unique_{}", self.counter);
+        self.counter += 1;
+        id
+    }
+
+    fn is(&mut self, kind: TokenKind) -> bool {
+        self.stream.is(kind)
     }
 }
