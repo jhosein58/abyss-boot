@@ -1,32 +1,13 @@
-fn vec_push(vec: &i64, val: i64) {
-    let i: i64 = vec[1]
-    let ref: &i64 = vec[2]
-    ref[i] = val
-    vec[1] = i + 1
-}
-
-fn vec_print(vec: &i64) {
-    let len: i64 = vec[1]
-    let ref: &i64 = vec[2]
-    print("[")
-    for i in 0 -> len {
-        print_i64(ref[i])
-        if i < len - 1 {
-            print(", ")
-        }
-    }
-    print("]\n")
-}
 
 fn entry {
 
-    let arr: i64[100]
-    let vec = [100, 0, &arr]
-
-    vec_push(vec, 5)
-    vec_push(vec, 100)
-    vec_push(vec, -3)
-
-    vec_print(vec)
-
+    for i in 0 -> 10 {
+        for j in 0 -> i {
+            print("*")
+        }
+        print("\n")
+    }
+    
 }
+
+

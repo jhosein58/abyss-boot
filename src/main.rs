@@ -1,8 +1,9 @@
 use std::{
     collections::HashMap,
+    ffi::CStr,
     fs::{self},
     io::Read,
-    os::raw::c_void,
+    os::raw::{c_char, c_double, c_longlong, c_void},
     sync::{
         Mutex, OnceLock,
         atomic::{AtomicI64, Ordering},
@@ -11,15 +12,30 @@ use std::{
 };
 
 use abyss::AbyssJit;
-use abyss_codegen::{ctarget::ctarget::CTarget, director::Director, target::Target};
-use abyss_parser::{ast::Type, parser::Parser};
+use abyss_analyzer::{flattener::Flattener, ir::Ir};
+use abyss_codegen::{ctarget::ctarget::CTarget, director::Director};
+use abyss_parser::ast::{FunctionBody, Stmt, get_debug_prog};
+// use abyss_codegen::{ctarget::ctarget::CTarget, director::Director, target::Target};
+// use abyss_parser::{ast::Type, parser::Parser};
 
-pub unsafe extern "C" fn print_i(n: i64) {
-    println!("{}", n);
+unsafe extern "C" fn ab_print_str(ptr: *const c_char) {
+    if ptr.is_null() {
+        return;
+    }
+    let c_str = CStr::from_ptr(ptr);
+    print!("{}", c_str.to_string_lossy());
 }
 
-pub unsafe extern "C" fn print_f(n: f64) {
-    println!("{}", n);
+unsafe extern "C" fn ab_print_i64(x: c_longlong) {
+    print!("{}", x);
+}
+
+unsafe extern "C" fn ab_print_f64(x: c_double) {
+    print!("{}", x);
+}
+
+unsafe extern "C" fn ab_newline() {
+    println!();
 }
 
 static mut SEED: u64 = 0x123456789ABCDEF;
@@ -132,80 +148,86 @@ pub extern "C" fn arr_len(id: i64) -> i64 {
     0
 }
 
+// fn main() {
+//     let mut input = String::new();
+//     fs::File::open("main.a")
+//         .unwrap()
+//         .read_to_string(&mut input)
+//         .unwrap();
+
+//     println!("Compiling...");
+
+//     let t = Instant::now();
+
+//     let mut target = CTarget::new();
+//     let mut director = Director::new(&mut target);
+
+//     let mut parser = Parser::new(&input);
+//     println!("{}", parser.format_errors("test.a"));
+//     director.process_program(&parser.parse_program());
+
+//     let code = target.get_code();
+//     //println!("{}", code);
+
+//     let c_code = code;
+
+//     let mut jit = AbyssJit::new();
+
+//     jit.add_function("print", ab_print_str as *const c_void);
+//     jit.add_function("print_i64", ab_print_i64 as *const c_void);
+//     jit.add_function("print_f64", ab_print_f64 as *const c_void);
+//     jit.add_function("newline", ab_newline as *const c_void);
+
+//     jit.compile(c_code).expect("Compile error");
+//     jit.finalize().expect("Relocation error");
+
+//     println!("Finished in: {}ms", t.elapsed().as_millis());
+//     println!("Running...\n");
+
+//     type EntryFn = extern "C" fn();
+
+//     if let Some(entry) = jit.get_function::<EntryFn>("entry") {
+//         entry();
+//     } else {
+//         println!("Function 'entry' not found!");
+//     }
+// }
 fn main() {
-    let mut input = String::new();
-    fs::File::open("main.a")
-        .unwrap()
-        .read_to_string(&mut input)
-        .unwrap();
+    let program = get_debug_prog();
 
-    // println!("Code:\n{}", input);
+    let flattener = Flattener::new();
+    let flat_program = flattener.flatten(program);
 
-    println!("Compiling...");
+    let ir = Ir::build(&flat_program);
 
-    let t = Instant::now();
-
-    // let symbols = [
-    //     ("print_i", print_i as *const u8),
-    //     ("print_f", print_f as *const u8),
-    //     ("rand", rand as *const u8),
-    //     ("arr", arr_alloc as *const u8),
-    //     ("arr_set", arr_set as *const u8),
-    //     ("arr_get", arr_get as *const u8),
-    //     ("arr_len", arr_len as *const u8),
-    //     ("arr_free", arr_free as *const u8),
-    // ];
-
-    // let mut target = CraneliftTarget::new(&symbols);
-    //
     let mut target = CTarget::new();
-    target.declare_extern_function("print_i", &[("n".to_string(), Type::I64)], Type::Void);
-    target.declare_extern_function("print_f", &[("n".to_string(), Type::F64)], Type::Void);
-    target.declare_extern_function("rand", &[], Type::F64);
-    target.declare_extern_function("arr", &[("s".to_string(), Type::I64)], Type::I64);
-    target.declare_extern_function(
-        "arr_set",
-        &[
-            ("a".to_string(), Type::I64),
-            ("i".to_string(), Type::I64),
-            ("v".to_string(), Type::F64),
-        ],
-        Type::Void,
-    );
-    target.declare_extern_function(
-        "arr_get",
-        &[("a".to_string(), Type::I64), ("i".to_string(), Type::I64)],
-        Type::F64,
-    );
-    target.declare_extern_function("arr_free", &[("a".to_string(), Type::I64)], Type::Void);
+    let mut compiler = Director::new(&mut target);
+    compiler.process_program(&ir);
 
-    target.declare_extern_function("arr_len", &[("a".to_string(), Type::I64)], Type::I64);
-    let mut director = Director::new(&mut target);
+    println!("{}", target.get_code());
 
-    let mut parser = Parser::new(&input);
-    let program = parser.parse_program();
-    println!("{}", parser.format_errors("test.a"));
-    //dbg!(&program);
+    let c_code = r#"
 
-    director.process_program(&program);
 
-    let code = target.get_code();
-    //println!("{}", code);
 
-    let c_code = code;
+          void entry() {
 
-    let mut jit = AbyssJit::new();
-    jit.add_function("print_i", print_i as *const c_void);
+              while(1) {
+
+              }
+          }
+      "#;
+
+    let mut jit = AbyssJit::new().unwrap();
+
     jit.compile(c_code).expect("Compile error");
     jit.finalize().expect("Relocation error");
 
-    println!("Finished in: {}ms", t.elapsed().as_millis());
-    println!("Running...\n");
-    type EntryFn = extern "C" fn();
+    type FnType = extern "C" fn();
 
-    if let Some(add_func) = jit.get_function::<EntryFn>("entry") {
-        add_func();
-    } else {
-        println!("Function 'entry' not found!");
-    }
+    let func = jit
+        .get_function::<FnType>("entry")
+        .expect("Function not found");
+
+    func();
 }

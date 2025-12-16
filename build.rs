@@ -3,19 +3,17 @@ use std::path::PathBuf;
 
 fn main() {
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
-    let root = PathBuf::from(manifest_dir);
+    let libs_dir = PathBuf::from(manifest_dir).join("libs");
 
-    let tcc_path = root.join("third_party/tcc");
-
-    println!("cargo:rustc-link-search=native={}", tcc_path.display());
+    println!("cargo:rustc-link-search=native={}", libs_dir.display());
 
     println!("cargo:rustc-link-lib=static=tcc");
 
-    if env::var("CARGO_CFG_TARGET_OS").unwrap() != "windows" {
-        println!("cargo:rustc-link-arg=-ldl");
-        println!("cargo:rustc-link-arg=-lm");
-        println!("cargo:rustc-link-arg=-lpthread");
+    let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
+    if target_os == "linux" {
+        println!("cargo:rustc-link-lib=dylib=dl");
+        println!("cargo:rustc-link-lib=dylib=m");
     }
 
-    println!("cargo:rerun-if-changed=third_party/tcc/libtcc.a");
+    println!("cargo:rerun-if-changed=libs/libtcc.a");
 }

@@ -4,6 +4,7 @@ members = [
     "compiler/abyss_lexer",
     "compiler/abyss_parser",
     "compiler/abyss_codegen",
+    "compiler/abyss_analyzer",
 ]
 
 
@@ -16,9 +17,13 @@ edition = "2024"
 abyss_lexer = { path = "./compiler/abyss_lexer" }
 abyss_parser = { path = "./compiler/abyss_parser" }
 abyss_codegen = { path = "./compiler/abyss_codegen" }
-
+abyss_analyzer = { path = "./compiler/abyss_analyzer" }
 
 libc = "0.2"
+cc = "1.0"
+include_dir = "0.7"
+tempfile = "3"
+
 
 [build-dependencies]
 cc = "1.0"
