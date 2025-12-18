@@ -98,7 +98,7 @@ impl<'a> Parser<'a> {
             TokenKind::Ident => {
                 let name = self.stream.current_lit().to_string();
                 self.advance();
-                Some(Expr::Ident(name))
+                Some(Expr::Ident(vec![name]))
             }
             TokenKind::OParen => {
                 self.advance();
@@ -110,6 +110,15 @@ impl<'a> Parser<'a> {
                 self.advance();
                 self.parse_array_literal()
             }
+
+            TokenKind::Size => {
+                self.advance();
+                self.consume(TokenKind::OParen)?;
+                let target_type = self.parse_type()?;
+                self.consume(TokenKind::CParen)?;
+                Some(Expr::SizeOf(target_type))
+            }
+
             TokenKind::Minus
             | TokenKind::Not
             | TokenKind::Tilde
@@ -152,23 +161,18 @@ impl<'a> Parser<'a> {
 
         match token_kind {
             TokenKind::OParen => {
-                if let Expr::Ident(name) = lhs {
-                    self.advance();
-                    let mut args = Vec::new();
-                    if !self.is(TokenKind::CParen) {
-                        loop {
-                            args.push(self.parse_expr()?);
-                            if !self.stream.consume(TokenKind::Comma) {
-                                break;
-                            }
+                self.advance();
+                let mut args = Vec::new();
+                if !self.is(TokenKind::CParen) {
+                    loop {
+                        args.push(self.parse_expr()?);
+                        if !self.stream.consume(TokenKind::Comma) {
+                            break;
                         }
                     }
-                    self.consume(TokenKind::CParen)?;
-                    Some(Expr::Call(name, args))
-                } else {
-                    self.emit_error_at_current(ParseErrorKind::NotAFunction);
-                    None
                 }
+                self.consume(TokenKind::CParen)?;
+                Some(Expr::Call(Box::new(lhs), args, Vec::new()))
             }
             TokenKind::OBracket => {
                 self.advance();
@@ -255,6 +259,7 @@ impl<'a> Parser<'a> {
             _ => panic!("Not a binary operator: {:?}", kind),
         }
     }
+
     pub fn parse_type(&mut self) -> Option<Type> {
         if self.stream.is(TokenKind::Amp) {
             self.advance();
@@ -272,6 +277,10 @@ impl<'a> Parser<'a> {
             Type::Bool
         } else if self.stream.consume(TokenKind::Pass) {
             Type::Void
+        } else if self.stream.is(TokenKind::Ident) {
+            let name = self.stream.current_lit().to_string();
+            self.advance();
+            Type::Struct(vec![name], Vec::new())
         } else {
             self.emit_error_at_current(ParseErrorKind::Expected("type name".to_string()));
             return None;

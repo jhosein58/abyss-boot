@@ -78,13 +78,13 @@ impl CTarget {
                 }
             }
             LirLiteral::Str(s) => {
-                let escaped = s
-                    .replace("\\", "\\\\")
-                    .replace("\"", "\\\"")
-                    .replace("\n", "\\n")
-                    .replace("\r", "\\r")
-                    .replace("\t", "\\t");
-                format!("\"{}\"", escaped)
+                let content = if s.starts_with('"') && s.ends_with('"') && s.len() >= 2 {
+                    &s[1..s.len() - 1]
+                } else {
+                    s.as_str()
+                };
+
+                format!("\"{}\"", content)
             }
             LirLiteral::Null => "NULL".to_string(),
         }
@@ -488,5 +488,9 @@ impl Target for CTarget {
     }
     fn expr_addrof_end(&mut self) {
         self.write(")");
+    }
+    fn expr_sizeof(&mut self, ty: &LirType) {
+        let type_str = self.type_to_c(ty);
+        self.write(&format!("sizeof({})", type_str));
     }
 }

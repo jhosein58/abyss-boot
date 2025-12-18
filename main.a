@@ -1,13 +1,19 @@
 
 fn entry {
 
-    for i in 0 -> 10 {
-        for j in 0 -> i {
-            print("*")
-        }
-        print("\n")
+
+    let a: &i64 = malloc(size(i64) * 100) as &i64;
+
+    for i in 0 -> 100 {
+        a[i] = i
     }
-    
+
+    for i in 0 -> 100 {
+        printf("%f ", a[i]);
+    }
+
+    printf("\n")
+
+    free(a);
+
 }
-
-

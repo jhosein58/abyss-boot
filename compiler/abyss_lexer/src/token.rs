@@ -40,9 +40,10 @@ pub enum TokenKind {
     Literal(LiteralKind),
 
     // --- Keywords ---
-    Let, // let
-    Fn,  // fn
-
+    Let,     // let
+    Const,   // const
+    Fn,      // fn
+    Pub,     // pub
     Ret,     // ret
     If,      // if
     Else,    // else
@@ -63,6 +64,7 @@ pub enum TokenKind {
     U8,      // u8
     Bool,    // bool
     Pass,    // pass
+    Size,    // size
 
     Plus,       // +
     Minus,      // -
@@ -103,7 +105,9 @@ impl TokenKind {
     pub fn lookup_ident(ident: &str) -> TokenKind {
         match ident {
             "let" => TokenKind::Let,
+            "const" => TokenKind::Const,
             "fn" => TokenKind::Fn,
+            "pub" => TokenKind::Pub,
             "ret" => TokenKind::Ret,
             "if" => TokenKind::If,
             "else" => TokenKind::Else,
@@ -124,6 +128,7 @@ impl TokenKind {
             "u8" => TokenKind::U8,
             "bool" => TokenKind::Bool,
             "pass" => TokenKind::Pass,
+            "size" => TokenKind::Size,
             _ => TokenKind::Ident,
         }
     }
@@ -175,7 +180,9 @@ impl Display for TokenKind {
             TokenKind::Ident => write!(f, "Ident"),
             TokenKind::Literal(lit) => write!(f, "Literal({})", lit),
             TokenKind::Let => write!(f, "'let'"),
+            TokenKind::Const => write!(f, "'const'"),
             TokenKind::Fn => write!(f, "'fn'"),
+            TokenKind::Pub => write!(f, "'pub'"),
             TokenKind::Ret => write!(f, "'ret'"),
             TokenKind::If => write!(f, "'if'"),
             TokenKind::Else => write!(f, "'else'"),
@@ -196,6 +203,7 @@ impl Display for TokenKind {
             TokenKind::U8 => write!(f, "'u8'"),
             TokenKind::Bool => write!(f, "'bool'"),
             TokenKind::Pass => write!(f, "'pass'"),
+            TokenKind::Size => write!(f, "'size'"),
             TokenKind::Plus => write!(f, "'+'"),
             TokenKind::Minus => write!(f, "'-'"),
             TokenKind::Star => write!(f, "'*'"),

@@ -3,7 +3,7 @@ use colored::Colorize;
 use std::fmt::Write;
 
 use crate::{
-    ast::Program,
+    ast::{FunctionBody, FunctionDef, Program, Type},
     error::{ParseError, ParseErrorKind},
     source_map::{SourceMap, Span},
     stream::TokenStream,
@@ -46,6 +46,7 @@ impl<'a> Parser<'a> {
     pub fn mark_peek_span(&mut self) {
         self.recorded_span = self.stream.peek_span()
     }
+
     pub fn emit_error(&mut self, kind: ParseErrorKind, span: Span) {
         let message = kind.to_string();
         self.errors.push(ParseError {
@@ -142,7 +143,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_program(&mut self) -> Program {
-        let mut functions = vec![];
+        let mut functions = Self::get_std_externs();
 
         while self.stream.current().kind != TokenKind::Eof {
             if let Some(func) = self.parse_function() {
@@ -151,7 +152,11 @@ impl<'a> Parser<'a> {
         }
 
         Program {
-            functions: functions,
+            modules: Vec::new(),
+            structs: Vec::new(),
+            functions,
+            statics: Vec::new(),
+            enums: Vec::new(),
         }
     }
 
@@ -196,7 +201,7 @@ impl<'a> Parser<'a> {
     fn consume(&mut self, expected: TokenKind) -> Option<()> {
         if !self.stream.consume(expected) {
             self.emit_error_at_current(ParseErrorKind::UnexpectedToken {
-                expected: expected,
+                expected,
                 found: self.stream.current().kind,
             });
             self.synchronize();
@@ -213,5 +218,83 @@ impl<'a> Parser<'a> {
 
     fn is(&mut self, kind: TokenKind) -> bool {
         self.stream.is(kind)
+    }
+
+    fn get_std_externs() -> Vec<FunctionDef> {
+        let void_ptr = Type::Pointer(Box::new(Type::Void));
+        let const_void_ptr = Type::Pointer(Box::new(Type::Void));
+        let usize_t = Type::I64;
+        let int_t = Type::I64;
+        //let char_ptr = Type::Pointer(Box::new(Type::U8));
+
+        vec![
+            // FunctionDef {
+            //     is_pub: true,
+            //     name: "printf".to_string(),
+            //     generics: vec![],
+            //     params: vec![("format".to_string(), char_ptr.clone())],
+            //     return_type: int_t.clone(),
+            //     body: FunctionBody::Extern,
+            // },
+            FunctionDef {
+                is_pub: true,
+                name: "memset".to_string(),
+                generics: vec![],
+                params: vec![
+                    ("s".to_string(), void_ptr.clone()),
+                    ("c".to_string(), int_t.clone()),
+                    ("n".to_string(), usize_t.clone()),
+                ],
+                return_type: void_ptr.clone(),
+                body: FunctionBody::Extern,
+            },
+            FunctionDef {
+                is_pub: true,
+                name: "memcpy".to_string(),
+                generics: vec![],
+                params: vec![
+                    ("dest".to_string(), void_ptr.clone()),
+                    ("src".to_string(), const_void_ptr.clone()),
+                    ("n".to_string(), usize_t.clone()),
+                ],
+                return_type: void_ptr.clone(),
+                body: FunctionBody::Extern,
+            },
+            FunctionDef {
+                is_pub: true,
+                name: "malloc".to_string(),
+                generics: vec![],
+                params: vec![("size".to_string(), usize_t.clone())],
+                return_type: void_ptr.clone(),
+                body: FunctionBody::Extern,
+            },
+            FunctionDef {
+                is_pub: true,
+                name: "realloc".to_string(),
+                generics: vec![],
+                params: vec![
+                    ("ptr".to_string(), void_ptr.clone()),
+                    ("size".to_string(), usize_t.clone()),
+                ],
+                return_type: void_ptr.clone(),
+                body: FunctionBody::Extern,
+            },
+            FunctionDef {
+                is_pub: true,
+                name: "free".to_string(),
+                generics: vec![],
+                params: vec![("ptr".to_string(), void_ptr.clone())],
+                return_type: Type::Void,
+                body: FunctionBody::Extern,
+            },
+            FunctionDef {
+                is_pub: true,
+                name: "exit".to_string(),
+                generics: vec![],
+                params: vec![("status".to_string(), int_t.clone())],
+                return_type: Type::Void,
+                body: FunctionBody::Extern,
+            },
+        ]
     }
 }

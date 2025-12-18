@@ -260,9 +260,8 @@ impl<'a, T: Target> Director<'a, T> {
                 self.target.expr_cast_end();
             }
 
-            LirExpr::SizeOf(_) => {
-                // C syntax: sizeof(type)
-                self.target.expr_ident("sizeof");
+            LirExpr::SizeOf(ty) => {
+                self.target.expr_sizeof(ty);
             }
 
             LirExpr::StructInit { .. } | LirExpr::EnumInit { .. } => {}

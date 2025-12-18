@@ -108,6 +108,8 @@ pub trait Target {
     // Member Access: obj.field or ptr->field
     fn expr_member(&mut self, field: &str, is_pointer: bool);
 
+    fn expr_sizeof(&mut self, ty: &LirType);
+
     // Index: arr[idx]
     fn expr_index_start(&mut self);
     fn expr_index_end(&mut self);
