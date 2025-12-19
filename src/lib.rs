@@ -1,5 +1,11 @@
+use abyss_analyzer::{flattener::Flattener, hir::FlatProgram, ir::Ir, lir::LirProgram};
+use abyss_codegen::{ctarget::ctarget::CTarget, director::Director};
+use abyss_parser::{ast::Program, parser::Parser};
 use include_dir::{Dir, include_dir};
-use std::ffi::{CString, c_char, c_int, c_void};
+use std::{
+    ffi::{CString, c_char, c_int, c_void},
+    time::Instant,
+};
 use tempfile::TempDir;
 
 static TCC_MINIMAL_FS: Dir = include_dir!("tcc_minimal");
@@ -133,5 +139,85 @@ impl Drop for AbyssJit {
                 tcc_delete(self.state);
             }
         }
+    }
+}
+
+pub struct Abyss<'a> {
+    parser: Parser<'a>,
+}
+
+impl<'a> Abyss<'a> {
+    pub fn new(source: &'a str) -> Self {
+        Self {
+            parser: Parser::new(source),
+        }
+    }
+
+    pub fn parse_error(&self) -> String {
+        self.parser.format_errors("main.a")
+    }
+
+    pub fn parse(&mut self) -> Program {
+        self.parser.parse_program()
+    }
+
+    pub fn parse_flatten(&mut self) -> FlatProgram {
+        let program = self.parse();
+        let flattener = Flattener::new();
+        flattener.flatten(program)
+    }
+
+    pub fn build_ir(&mut self) -> LirProgram {
+        let program = self.parse_flatten();
+        let ir = Ir::build(&program);
+        ir
+    }
+
+    pub fn compile(&mut self) -> String {
+        let program = self.parse_flatten();
+        let ir = Ir::build(&program);
+        let mut target = CTarget::new();
+        let mut compiler = Director::new(&mut target);
+        compiler.process_program(&ir);
+        target.get_code().to_string()
+    }
+
+    pub fn run(&mut self) {
+        let t = Instant::now();
+        unsafe extern "C" {
+            fn printf(format: *const c_char, ...) -> c_int;
+            fn memset(s: *mut c_void, c: c_int, n: usize) -> *mut c_void;
+            fn memcpy(dest: *mut c_void, src: *const c_void, n: usize) -> *mut c_void;
+
+            fn malloc(size: usize) -> *mut c_void;
+            fn realloc(ptr: *mut c_void, size: usize) -> *mut c_void;
+            fn free(ptr: *mut c_void);
+
+            fn exit(status: c_int) -> !;
+        }
+
+        let mut jit = AbyssJit::new().unwrap();
+
+        jit.add_function("printf", printf as *const c_void);
+        jit.add_function("memset", memset as *const c_void);
+        jit.add_function("memcpy", memcpy as *const c_void);
+        jit.add_function("malloc", malloc as *const c_void);
+        jit.add_function("realloc", realloc as *const c_void);
+        jit.add_function("free", free as *const c_void);
+        jit.add_function("exit", exit as *const c_void);
+
+        jit.compile(&self.compile()).expect("Compile error");
+        jit.finalize().expect("Relocation error");
+
+        println!("Finished in: {}ms", t.elapsed().as_millis());
+        println!("Running...\n");
+
+        type FnType = extern "C" fn();
+
+        let func = jit
+            .get_function::<FnType>("entry")
+            .expect("Function not found");
+
+        func();
     }
 }

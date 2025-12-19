@@ -1,19 +1,157 @@
+fn power(base: f64, exp: i64): f64 {
+    let res: f64 = 1.0
+    let i: i64 = 0
+    while i < exp {
+        res = res * base
+        i = i + 1
+    }
+    ret res
+}
+
+fn factorial(n: i64): f64 {
+    if n == 0 { ret 1.0 }
+    let res: f64 = 1.0
+    let i: i64 = 1
+    while i < (n + 1) {
+        res = res * (i as f64)
+        i = i + 1
+    }
+    ret res
+}
+
+fn my_sin(x: f64): f64 {
+    let raw_x: f64 = x
+    if raw_x > 3.14159 {
+        raw_x = raw_x - 6.28318
+    }
+
+    let term1: f64 = raw_x
+    let term2: f64 = power(raw_x, 3) / factorial(3)
+    let term3: f64 = power(raw_x, 5) / factorial(5)
+    let term4: f64 = power(raw_x, 7) / factorial(7)
+    let term5: f64 = power(raw_x, 9) / factorial(9)
+
+    ret term1 - term2 + term3 - term4 + term5
+}
+
+fn my_cos(x: f64): f64 {
+    let raw_x: f64 = x
+    if raw_x > 3.14159 {
+        raw_x = raw_x - 6.28318
+    }
+
+    let term1: f64 = 1.0
+    let term2: f64 = power(raw_x, 2) / factorial(2)
+    let term3: f64 = power(raw_x, 4) / factorial(4)
+    let term4: f64 = power(raw_x, 6) / factorial(6)
+    let term5: f64 = power(raw_x, 8) / factorial(8)
+
+    ret term1 - term2 + term3 - term4 + term5
+}
+
+fn process_point(x: f64, y: f64, z: f64, ch: i64, w: i64, h: i64, buf: &i64, zbuf: &f64, cA: f64, sA: f64, cB: f64, sB: f64) {
+    let y1: f64 = y * cA - z * sA
+    let z1: f64 = y * sA + z * cA
+
+    let x2: f64 = x * cB - z1 * sB
+    let z2: f64 = x * sB + z1 * cB
+
+    let z_off: f64 = z2 + 40.0
+
+    if z_off == 0.0 { z_off = 0.1 }
+
+    let ooz: f64 = 1.0 / z_off
+
+    let xp_f: f64 = 30.0 + (x2 * ooz * 30.0 * 2.0)
+    let yp_f: f64 = 12.0 + (y1 * ooz * 30.0)
+
+    let xp: i64 = xp_f as i64
+    let yp: i64 = yp_f as i64
+
+    if (xp >= 0) {
+        if (xp < w) {
+            if (yp >= 0) {
+                if (yp < h) {
+                    let idx: i64 = yp * w + xp
+                    if ooz > zbuf[idx] {
+                        zbuf[idx] = ooz
+                        buf[idx] = ch
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn sleep_loop(limit: i64) {
+    let i: i64 = 0
+    while i < limit {
+        i = i + 1
+    }
+}
 
 fn entry {
+    let width: i64 = 60
+    let height: i64 = 25
+    let total_pixels: i64 = width * height
 
+    let buffer: &i64 = malloc(size(i64) * total_pixels) as &i64
+    let zbuffer: &f64 = malloc(size(f64) * total_pixels) as &f64
 
-    let a: &i64 = malloc(size(i64) * 100) as &i64;
+    let A: f64 = 0.0
+    let B: f64 = 0.0
 
-    for i in 0 -> 100 {
-        a[i] = i
+    while 1 {
+        printf("\x1b[H\x1b[2J", 0)
+
+        let clr_i: i64 = 0
+        while clr_i < total_pixels {
+            buffer[clr_i] = 32
+            zbuffer[clr_i] = 0.0
+            clr_i = clr_i + 1
+        }
+
+        let cosA: f64 = my_cos(A)
+        let sinA: f64 = my_sin(A)
+        let cosB: f64 = my_cos(B)
+        let sinB: f64 = my_sin(B)
+
+        let cube_width: f64 = 10.0
+        let step: f64 = 0.4
+
+        let i: f64 = 0.0 - cube_width
+        while i < cube_width {
+            let j: f64 = 0.0 - cube_width
+            while j < cube_width {
+                process_point(i, j, 0.0 - cube_width, 35, width, height, buffer, zbuffer, cosA, sinA, cosB, sinB)
+                process_point(i, j, cube_width, 36, width, height, buffer, zbuffer, cosA, sinA, cosB, sinB)
+                process_point(0.0 - cube_width, i, j, 43, width, height, buffer, zbuffer, cosA, sinA, cosB, sinB)
+                process_point(cube_width, i, j, 59, width, height, buffer, zbuffer, cosA, sinA, cosB, sinB)
+                process_point(i, 0.0 - cube_width, j, 126, width, height, buffer, zbuffer, cosA, sinA, cosB, sinB)
+                process_point(i, cube_width, j, 46, width, height, buffer, zbuffer, cosA, sinA, cosB, sinB)
+                j = j + step
+            }
+            i = i + step
+        }
+
+        let y: i64 = 0
+        while y < height {
+            let x: i64 = 0
+            while x < width {
+                let idx: i64 = y * width + x
+                printf("%c", buffer[idx])
+                x = x + 1
+            }
+            printf("%c", 10)
+            y = y + 1
+        }
+
+        A = A + 0.05
+        B = B + 0.05
+
+        if A > 6.28318 { A = 0.0 }
+        if B > 6.28318 { B = 0.0 }
+
+        sleep_loop(30000000)
     }
-
-    for i in 0 -> 100 {
-        printf("%f ", a[i]);
-    }
-
-    printf("\n")
-
-    free(a);
-
 }
