@@ -1,61 +1,9 @@
--- Define the memory layout (Matches C struct perfectly)
-struct Vec {
-    p: &i64,  -- Pointer to data
-    l: i64,   -- Length
-    c: i64    -- Capacity
-}
-
--- Constructor
-fn NewVec: Vec {
-    ret Vec { p: 0, l: 0, c: 0 }
-}
-
--- Add behavior to the data
-impl Vec {
-    -- Manual memory management, wrapped in a nice API
-    fn resize(self: &Vec, new_cap: i64) {
-        if new_cap > self.c {
-            -- Direct call to libc malloc/realloc logic
-            let new_ptr: &i64 = malloc(new_cap * size(i64)) as &i64
-
-            if self.p != 0 {
-                memcpy(new_ptr, self.p, self.l * size(i64))
-            }
-
-            free(self.p)
-            self.p = new_ptr
-            self.c = new_cap
-        }
-    }
-
-    fn push(self: &Vec, val: i64) {
-        if self.l == self.c {
-            -- "self.c" is syntactic sugar for accessing struct fields via pointer
-            self.resize(self.c + 1)
-        }
-        -- Array indexing on raw pointers!
-        self.p[self.l] = val
-        self.l += 1
-    }
-
-
-    fn get(self: &Vec, idx: i64): i64 {
-        ret self.p[idx]
-    }
-}
+mod stdlib.io;
 
 fn entry {
-    -- Stack allocation of the struct header
-    let my_vec: Vec = NewVec()
-
-    -- Method call syntax (Automatically passes &my_vec as 'self')
-    my_vec.push(1)
-    my_vec.push(20)
-    my_vec.push(300)
-
-    let val = my_vec.get(1)
-    printf("Vector value at index 1: %d\n", val)
-
-    -- Remember: In Abyss, you are the Garbage Collector.
-    -- free(my_vec.p) would go here in a real app.
+   io::print_newline()
+   io::print_f64(3.14)
+   io::print_newline()
+   io::print_i64(42)
+   io::print_newline()
 }

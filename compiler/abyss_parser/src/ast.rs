@@ -2,13 +2,11 @@ pub type Path = Vec<String>;
 
 #[derive(Debug, Clone)]
 pub enum Stmt {
-    Import(Path),
-    FromImport(Path, Vec<String>),
+    Mod(Path, Option<Box<Stmt>>),
     Let(String, Option<Type>, Option<Expr>),
     Const(String, Option<Type>, Option<Expr>),
     FunctionDef(Box<FunctionDef>),
     StructDef(Box<StructDef>),
-    EnumDef(Box<EnumDef>),
     Assign(Expr, Expr),
     Ret(Expr),
     Break,    // out
@@ -32,7 +30,6 @@ pub enum Expr {
     Cast(Box<Expr>, Type),
     Member(Box<Expr>, String),
     StructInit(Path, Vec<(String, Expr)>, Vec<Type>),
-    EnumInit(Path, Vec<Expr>, Vec<Type>),
     MethodCall(Box<Expr>, String, Vec<Expr>, Vec<Type>),
     SizeOf(Type),
     Match(Box<Expr>, Vec<(Pattern, Expr)>),
@@ -49,7 +46,6 @@ pub enum Type {
     Pointer(Box<Type>),
     Array(Box<Type>, usize),
     Struct(Path, Vec<Type>),
-    Enum(Path, Vec<Type>),
     Generic(String),
     Function(Vec<Type>, Box<Type>, Vec<Type>), // Function(args, return_type, generics)
 }
@@ -133,13 +129,6 @@ pub struct StaticDef {
     pub ty: Type,
     pub value: Expr,
 }
-#[derive(Debug, Clone)]
-pub struct EnumDef {
-    pub is_pub: bool,
-    pub name: String,
-    pub generics: Vec<String>,
-    pub variants: Vec<(String, Vec<Type>)>,
-}
 
 #[derive(Debug, Clone)]
 pub struct Program {
@@ -148,5 +137,4 @@ pub struct Program {
     pub structs: Vec<StructDef>,
     pub functions: Vec<FunctionDef>,
     pub statics: Vec<StaticDef>,
-    pub enums: Vec<EnumDef>,
 }

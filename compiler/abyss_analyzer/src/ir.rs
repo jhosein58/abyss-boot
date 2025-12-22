@@ -126,7 +126,6 @@ impl Ir {
             Type::Pointer(inner) => LirType::Pointer(Box::new(self.transpile_type(inner))),
             Type::Array(inner, size) => LirType::Array(Box::new(self.transpile_type(inner)), *size),
             Type::Struct(path, _) => LirType::Struct(path.join("__")),
-            Type::Enum(path, _) => LirType::Enum(path.join("__")),
             Type::Function(args, ret, _) => {
                 let lir_args = args.iter().map(|t| self.transpile_type(t)).collect();
                 let lir_ret = self.transpile_type(ret);

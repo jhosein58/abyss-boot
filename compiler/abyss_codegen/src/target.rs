@@ -11,7 +11,6 @@ pub trait Target {
     fn start_program(&mut self);
     fn end_program(&mut self);
     fn define_struct(&mut self, name: &str, fields: &[(String, LirType)]);
-    fn define_enum(&mut self, name: &str, variants: &[(String, LirType)]);
 
     // ========================================================================
     // 2. Global Variables

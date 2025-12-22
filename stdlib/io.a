@@ -1,0 +1,11 @@
+fn print_newline {
+    printf("\n");
+}
+
+fn print_f64(value: f64) {
+    printf("%f", value);
+}
+
+fn print_i64(value: i64) {
+    printf("%ld", value);
+}

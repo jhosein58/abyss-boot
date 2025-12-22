@@ -1,7 +1,9 @@
+use std::{fs, path::PathBuf};
+
 use abyss_lexer::token::TokenKind;
 
 use crate::{
-    ast::{FunctionBody, FunctionDef, StaticDef, StructDef, Type},
+    ast::{FunctionBody, FunctionDef, Program, StaticDef, StructDef, Type},
     error::ParseErrorKind,
     parser::Parser,
 };
@@ -279,5 +281,151 @@ impl<'a> Parser<'a> {
         self.consume_safely(TokenKind::CBrace);
 
         methods
+    }
+
+    fn parse_mod_path(&mut self) -> Option<Vec<String>> {
+        let mut path = Vec::new();
+        path.push(self.read_ident()?);
+
+        while self.stream.is(TokenKind::Dot) {
+            self.advance();
+            path.push(self.read_ident()?);
+        }
+        Some(path)
+    }
+    pub fn parse_module(&mut self, _: bool) -> Option<(String, Program)> {
+        self.consume_safely(TokenKind::Mod)?;
+
+        let path_segments = self.parse_mod_path()?;
+
+        let final_module_name = if self.stream.is(TokenKind::As) {
+            self.advance();
+            self.read_ident()?
+        } else {
+            path_segments.last().cloned().unwrap()
+        };
+
+        if self.stream.is(TokenKind::OBrace) {
+            if path_segments.len() > 1 {
+                self.emit_error_at_current(ParseErrorKind::Message(
+                    "Inline modules cannot have paths (use simple identifier)".to_string(),
+                ));
+            }
+
+            self.advance();
+            let program = self.parse_definitions(Some(TokenKind::CBrace));
+            self.consume_safely(TokenKind::CBrace)?;
+            return Some((final_module_name, program));
+        } else if self.stream.is(TokenKind::Semi) {
+            self.consume_safely(TokenKind::Semi)?;
+
+            let mut relative_path = PathBuf::new();
+            for seg in &path_segments {
+                relative_path.push(seg);
+            }
+
+            let direct_file_path = self.root_dir.join(&relative_path).with_extension("a");
+
+            let dir_path = self.root_dir.join(&relative_path);
+
+            if direct_file_path.exists() && direct_file_path.is_file() {
+                return self.load_single_file_module(&final_module_name, &direct_file_path);
+            }
+
+            if dir_path.exists() && dir_path.is_dir() {
+                let mod_file_path = dir_path.join("mod.a");
+
+                if mod_file_path.exists() {
+                    return self.load_single_file_module(&final_module_name, &mod_file_path);
+                } else {
+                    return self.load_directory_modules(&final_module_name, &dir_path);
+                }
+            }
+
+            self.emit_error_at_current(ParseErrorKind::Message(format!(
+                "Could not resolve module '{}'. Looked for file at {:?} or directory at {:?}",
+                final_module_name, direct_file_path, dir_path
+            )));
+            return None;
+        } else {
+            self.emit_error_at_current(ParseErrorKind::UnexpectedToken {
+                expected: TokenKind::OBrace,
+                found: self.stream.current().kind,
+            });
+            None
+        }
+    }
+
+    fn load_single_file_module(
+        &mut self,
+        mod_name: &str,
+        file_path: &PathBuf,
+    ) -> Option<(String, Program)> {
+        match fs::read_to_string(file_path) {
+            Ok(content) => {
+                let path_str = file_path.to_string_lossy().to_string();
+                let mut sub_parser = Parser::new(&content, &path_str);
+                let program = sub_parser.parse_program();
+
+                if sub_parser.has_errors() {
+                    self.emit_error_at_current(ParseErrorKind::Message(format!(
+                        "Module '{}' (in {:?}) has parsing errors.",
+                        mod_name, file_path
+                    )));
+                }
+
+                Some((mod_name.to_string(), program))
+            }
+            Err(e) => {
+                self.emit_error_at_current(ParseErrorKind::Message(format!(
+                    "IO Error reading module '{}': {}",
+                    mod_name, e
+                )));
+                None
+            }
+        }
+    }
+
+    fn load_directory_modules(
+        &mut self,
+        mod_name: &str,
+        dir_path: &PathBuf,
+    ) -> Option<(String, Program)> {
+        let mut folder_program = Program {
+            functions: Vec::new(),
+            modules: Vec::new(),
+            statics: Vec::new(),
+            structs: Vec::new(),
+        };
+        match fs::read_dir(dir_path) {
+            Ok(entries) => {
+                for entry in entries {
+                    if let Ok(entry) = entry {
+                        let path = entry.path();
+
+                        if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("a")
+                        {
+                            if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                                let sub_mod_name = stem.to_string();
+
+                                if let Some((_, sub_prog)) =
+                                    self.load_single_file_module(&sub_mod_name, &path)
+                                {
+                                    folder_program.modules.push((sub_mod_name, sub_prog, true));
+                                }
+                            }
+                        }
+                    }
+                }
+                Some((mod_name.to_string(), folder_program))
+            }
+            Err(e) => {
+                self.emit_error_at_current(ParseErrorKind::Message(format!(
+                    "IO Error reading directory '{}': {}",
+                    mod_name, e
+                )));
+                None
+            }
+        }
     }
 }

@@ -114,7 +114,6 @@ impl Flattener {
                 Stmt::FunctionDef(inner_func_box) => {
                     let inner_func = *inner_func_box;
                     let old_name = inner_func.name.clone();
-
                     let new_global_name = format!("{}__{}", parent_mangled_name, old_name);
 
                     renames.push((old_name, new_global_name));
@@ -130,6 +129,29 @@ impl Flattener {
 
                     inner_structs.push(inner_struct);
                 }
+
+                Stmt::Mod(path, Some(body_box)) => {
+                    if let Some(mod_name) = path.last() {
+                        let mod_prefix = format!("{}__{}", parent_mangled_name, mod_name);
+
+                        if let Stmt::Block(mut mod_stmts) = *body_box {
+                            let (
+                                extracted_funcs,
+                                extracted_structs,
+                                cleaned_mod_stmts,
+                                mod_renames,
+                            ) = self.isolate_inner_functions(&mut mod_stmts, &mod_prefix);
+
+                            inner_funcs.extend(extracted_funcs);
+                            inner_structs.extend(extracted_structs);
+
+                            renames.extend(mod_renames);
+
+                            cleaned_stmts.push(Stmt::Block(cleaned_mod_stmts));
+                        }
+                    }
+                }
+
                 _ => cleaned_stmts.push(stmt),
             }
         }
@@ -254,13 +276,7 @@ impl Flattener {
                     self.rename_in_expr(arg, renames);
                 }
                 for g in generics {
-                    self.rename_in_type(g, renames); // <--- مهم
-                }
-            }
-
-            Expr::EnumInit(_, fields, _) => {
-                for field in fields {
-                    self.rename_in_expr(field, renames);
+                    self.rename_in_type(g, renames);
                 }
             }
 
@@ -298,7 +314,7 @@ impl Flattener {
 
     fn rename_in_type(&self, ty: &mut Type, renames: &[(String, String)]) {
         match ty {
-            Type::Struct(path, generics) | Type::Enum(path, generics) => {
+            Type::Struct(path, generics) => {
                 if path.len() == 1 {
                     for (old, new) in renames {
                         if &path[0] == old {

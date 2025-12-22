@@ -1,6 +1,9 @@
 use abyss_lexer::token::TokenKind;
 use colored::Colorize;
-use std::fmt::Write;
+use std::{
+    fmt::Write,
+    path::{Path, PathBuf},
+};
 
 use crate::{
     ast::{FunctionBody, FunctionDef, Program, Type},
@@ -22,10 +25,18 @@ pub struct Parser<'a> {
     errors: Vec<ParseError>,
     recorded_span: Span,
     unique_id_counter: u32,
+    root_dir: PathBuf,
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(input: &'a str) -> Self {
+    pub fn new(input: &'a str, file_path: &str) -> Self {
+        let path = Path::new(file_path);
+        let root_dir = if path.is_file() {
+            path.parent().unwrap_or(Path::new(".")).to_path_buf()
+        } else {
+            path.to_path_buf()
+        };
+
         Self {
             source: input,
             stream: TokenStream::new(input),
@@ -33,6 +44,7 @@ impl<'a> Parser<'a> {
             errors: Vec::new(),
             recorded_span: Span { start: 0, end: 0 },
             unique_id_counter: 0,
+            root_dir,
         }
     }
 
@@ -144,17 +156,30 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_program(&mut self) -> Program {
-        let mut functions = Self::get_std_externs();
+        self.parse_definitions(None)
+    }
+
+    fn parse_definitions(&mut self, end_token: Option<TokenKind>) -> Program {
+        let mut functions = if end_token.is_none() {
+            Self::get_std_externs()
+        } else {
+            Vec::new()
+        };
         let mut structs = Vec::new();
         let mut statics = Vec::new();
-        let modules = Vec::new();
-        let enums = Vec::new();
+        let mut modules = Vec::new();
 
-        while !self.stream.is_at_end() {
+        loop {
             self.skip_newlines();
 
             if self.stream.is_at_end() {
                 break;
+            }
+
+            if let Some(end) = end_token {
+                if self.stream.is(end) {
+                    break;
+                }
             }
 
             let is_pub = if self.stream.is(TokenKind::Pub) {
@@ -175,19 +200,27 @@ impl<'a> Parser<'a> {
                         structs.push(st);
                     }
                 }
-
                 TokenKind::Impl => {
                     let impl_methods = self.parse_impl_block();
                     functions.extend(impl_methods);
                 }
-
                 TokenKind::Static => {
                     if let Some(st) = self.parse_static_def(is_pub) {
                         statics.push(st);
                     }
                 }
-
+                TokenKind::Mod => {
+                    if let Some((name, prog)) = self.parse_module(is_pub) {
+                        modules.push((name, prog, is_pub));
+                    }
+                }
                 _ => {
+                    if let Some(end) = end_token {
+                        if self.stream.is(end) {
+                            break;
+                        }
+                    }
+
                     self.emit_error_at_current(ParseErrorKind::UnexpectedToken {
                         expected: TokenKind::Fn,
                         found: self.stream.current().kind,
@@ -202,7 +235,6 @@ impl<'a> Parser<'a> {
             structs,
             functions,
             statics,
-            enums,
         }
     }
 

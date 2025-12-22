@@ -153,9 +153,9 @@ pub struct Abyss<'a, T: Target> {
 }
 
 impl<'a, T: Target> Abyss<'a, T> {
-    pub fn new(source: &'a str, target: T) -> Self {
+    pub fn new(source: &'a str, path: &str, target: T) -> Self {
         Self {
-            parser: Parser::new(source),
+            parser: Parser::new(source, path),
             target,
             jit: AbyssJit::new().unwrap(),
         }

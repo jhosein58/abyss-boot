@@ -68,6 +68,7 @@ pub enum TokenKind {
     Bool,    // bool
     Pass,    // pass
     Size,    // size
+    Mod,     // mod
 
     Plus,       // +
     Minus,      // -
@@ -82,6 +83,7 @@ pub enum TokenKind {
     Tilde,      // ~
     Comma,      // ,
     Colon,      // :
+    ColonColon, // ::
     Semi,       // ;
     Dot,        // .
     OParen,     // (
@@ -135,6 +137,8 @@ impl TokenKind {
             "bool" => TokenKind::Bool,
             "pass" => TokenKind::Pass,
             "size" => TokenKind::Size,
+            "mod" => TokenKind::Mod,
+
             _ => TokenKind::Ident,
         }
     }
@@ -154,6 +158,7 @@ impl TokenKind {
             "~" => TokenKind::Tilde,
             "," => TokenKind::Comma,
             ":" => TokenKind::Colon,
+            "::" => TokenKind::ColonColon,
             ";" => TokenKind::Semi,
             "." => TokenKind::Dot,
             "(" => TokenKind::OParen,
@@ -213,6 +218,8 @@ impl Display for TokenKind {
             TokenKind::Bool => write!(f, "'bool'"),
             TokenKind::Pass => write!(f, "'pass'"),
             TokenKind::Size => write!(f, "'size'"),
+            TokenKind::Mod => write!(f, "'mod'"),
+
             TokenKind::Plus => write!(f, "'+'"),
             TokenKind::Minus => write!(f, "'-'"),
             TokenKind::Star => write!(f, "'*'"),
@@ -226,6 +233,7 @@ impl Display for TokenKind {
             TokenKind::Tilde => write!(f, "'~'"),
             TokenKind::Comma => write!(f, "','"),
             TokenKind::Colon => write!(f, "':'"),
+            TokenKind::ColonColon => write!(f, " '::'"),
             TokenKind::Semi => write!(f, "';'"),
             TokenKind::Dot => write!(f, "'.'"),
             TokenKind::OParen => write!(f, "'('"),

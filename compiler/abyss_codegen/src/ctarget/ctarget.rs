@@ -53,7 +53,6 @@ impl CTarget {
             LirType::Pointer(inner) => format!("{}*", self.type_to_c(inner)),
             LirType::Array(inner, _) => format!("{}*", self.type_to_c(inner)),
             LirType::Struct(name) => format!("struct {}", name),
-            LirType::Enum(name) => format!("enum {}", name),
             LirType::FunctionPtr(args, ret) => {
                 let args_str = args
                     .iter()
@@ -186,26 +185,6 @@ impl Target for CTarget {
                 _ => format!("{} {}", self.type_to_c(field_type), field_name),
             };
             self.write(&format!("{};", decl));
-            self.set_newline_pending();
-        }
-        self.pop_indent();
-        self.write("};");
-        self.set_newline_pending();
-        self.write("");
-        self.set_newline_pending();
-    }
-
-    fn define_enum(&mut self, name: &str, variants: &[(String, LirType)]) {
-        self.write(&format!("enum {}_Tag {{", name));
-        self.push_indent();
-        self.set_newline_pending();
-        for (i, (variant_name, _)) in variants.iter().enumerate() {
-            self.write(&format!(
-                "{}_{} = {},",
-                name.to_uppercase(),
-                variant_name.to_uppercase(),
-                i
-            ));
             self.set_newline_pending();
         }
         self.pop_indent();

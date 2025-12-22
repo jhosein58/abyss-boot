@@ -32,9 +32,6 @@ impl<'a, T: Target> Director<'a, T> {
             self.target.define_struct(&st.name, &st.fields);
         }
 
-        for en in &program.enums {
-            self.target.define_enum(&en.name, &en.variants);
-        }
         for glob in &program.globals {
             self.target.define_global_start(&glob.name, &glob.ty, false);
 
@@ -285,8 +282,6 @@ impl<'a, T: Target> Director<'a, T> {
 
                 self.target.expr_struct_init_end();
             }
-
-            LirExpr::EnumInit { .. } => {}
 
             LirExpr::Ternary(cond, then_expr, else_expr) => {
                 self.process_expr(cond);

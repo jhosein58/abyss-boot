@@ -63,12 +63,6 @@ pub enum LirExpr {
         fields: Vec<(String, LirExpr)>,
     },
 
-    EnumInit {
-        enum_name: String,
-        variant_tag: usize,
-        payload: Option<Box<LirExpr>>,
-    },
-
     Ternary(Box<LirExpr>, Box<LirExpr>, Box<LirExpr>),
 
     SizeOf(LirType),
@@ -95,7 +89,6 @@ pub enum LirType {
     Pointer(Box<LirType>),
     Array(Box<LirType>, usize),
     Struct(String),
-    Enum(String),
     FunctionPtr(Vec<LirType>, Box<LirType>),
 }
 
@@ -103,12 +96,6 @@ pub enum LirType {
 pub struct LirStructDef {
     pub name: String,
     pub fields: Vec<(String, LirType)>,
-}
-
-#[derive(Debug, Clone)]
-pub struct LirEnumDef {
-    pub name: String,
-    pub variants: Vec<(String, LirType)>,
 }
 
 #[derive(Debug, Clone)]
@@ -130,7 +117,6 @@ pub struct LirFunctionDef {
 #[derive(Debug, Clone, Default)]
 pub struct LirProgram {
     pub structs: Vec<LirStructDef>,
-    pub enums: Vec<LirEnumDef>,
     pub globals: Vec<LirGlobalVar>,
     pub functions: Vec<LirFunctionDef>,
 }

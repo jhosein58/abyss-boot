@@ -122,9 +122,23 @@ impl<'a> Parser<'a> {
                 Some(Expr::Lit(Lit::Bool(false)))
             }
             TokenKind::Ident => {
-                let name = self.stream.current_lit().to_string();
+                let mut path = Vec::new();
+                path.push(self.stream.current_lit().to_string());
                 self.advance();
-                let path = vec![name];
+
+                while self.stream.is(TokenKind::ColonColon) {
+                    self.advance();
+
+                    if self.stream.is(TokenKind::Ident) {
+                        path.push(self.stream.current_lit().to_string());
+                        self.advance();
+                    } else {
+                        self.emit_error_at_current(ParseErrorKind::Expected(
+                            "Identifier after '::'".to_string(),
+                        ));
+                        return None;
+                    }
+                }
 
                 if self.stream.is(TokenKind::OBrace) {
                     let generics = Vec::new();
