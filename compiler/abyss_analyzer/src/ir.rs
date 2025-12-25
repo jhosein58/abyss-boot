@@ -119,11 +119,22 @@ impl Ir {
     fn transpile_type(&self, ty: &Type) -> LirType {
         match ty {
             Type::U8 => LirType::U8,
+            Type::U16 => LirType::U16,
+            Type::U32 => LirType::U32,
+            Type::U64 => LirType::U64,
+            Type::Usize => LirType::Usize,
+            Type::I8 => LirType::I8,
+            Type::I16 => LirType::I16,
+            Type::I32 => LirType::I32,
             Type::I64 => LirType::I64,
+            Type::Isize => LirType::Isize,
+            Type::F32 => LirType::F32,
             Type::F64 => LirType::F64,
+            Type::Char => LirType::Char,
             Type::Bool => LirType::Bool,
             Type::Void => LirType::Void,
             Type::Pointer(inner) => LirType::Pointer(Box::new(self.transpile_type(inner))),
+            Type::Const(inner) => LirType::Const(Box::new(self.transpile_type(inner))),
             Type::Array(inner, size) => LirType::Array(Box::new(self.transpile_type(inner)), *size),
             Type::Struct(path, _) => LirType::Struct(path.join("__")),
             Type::Function(args, ret, _) => {
@@ -183,6 +194,7 @@ impl Ir {
             return_type: self.transpile_type(&func.return_type),
             body,
             is_extern,
+            is_variadic: func.is_variadic,
         }
     }
 

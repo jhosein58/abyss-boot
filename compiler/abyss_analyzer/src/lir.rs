@@ -83,11 +83,22 @@ pub enum LirLiteral {
 #[derive(Debug, Clone, PartialEq)]
 pub enum LirType {
     U8,
+    U16,
+    U32,
+    U64,
+    Usize,
+    I8,
+    I16,
+    I32,
     I64,
+    Isize,
+    F32,
     F64,
+    Char,
     Bool,
     Void,
     Pointer(Box<LirType>),
+    Const(Box<LirType>),
     Array(Box<LirType>, usize),
     Struct(String),
     FunctionPtr(Vec<LirType>, Box<LirType>),
@@ -113,6 +124,7 @@ pub struct LirFunctionDef {
     pub return_type: LirType,
     pub body: Vec<LirStmt>,
     pub is_extern: bool,
+    pub is_variadic: bool,
 }
 
 #[derive(Debug, Clone, Default)]

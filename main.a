@@ -2,19 +2,17 @@
 mod stdlib::pre;
 use pre::string::Str;
 
+
 fn app_main {
 
-   let a = Str.from("dyn Alireza")
+ 
 
-   let b = "stc Alerza"
+   let a = Str.from("hello world\n");
 
-
-   -- آ رو میشه تغییر داد ولی بی ثابته
-
-   a.push_str("hello")
-   a.print()
+   printf(a.as_ptr())
 
 }
+
 
 
 

@@ -4,6 +4,7 @@ fn malloc(s: i64): &pass;
 fn realloc(ptr: &pass, s: i64): &pass;
 fn free(ptr: &pass);
 fn exit(status: i64);
+fn printf(s: const &char, ..): i32;
 
 fn print(s: &u8, v: i64);
 

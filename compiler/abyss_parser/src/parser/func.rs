@@ -73,7 +73,8 @@ impl<'a> Parser<'a> {
 
         let generics = self.parse_generic_params()?;
 
-        let params = self.parse_func_params()?;
+        let (params, is_variadic) = self.parse_func_params()?;
+
         let return_type = self.parse_return_type();
 
         let body = if self.stream.is(TokenKind::Semi) {
@@ -95,9 +96,9 @@ impl<'a> Parser<'a> {
             params,
             return_type,
             body,
+            is_variadic,
         })
     }
-
     pub fn parse_struct_def(&mut self, is_pub: bool) -> Option<StructDef> {
         self.consume_safely(TokenKind::Struct)?;
 
@@ -190,30 +191,41 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_func_params(&mut self) -> Option<Vec<(String, Type)>> {
+    fn parse_func_params(&mut self) -> Option<(Vec<(String, Type)>, bool)> {
         let mut params = Vec::new();
+        let mut is_variadic = false;
+
         if !self.stream.is(TokenKind::OParen) {
-            return Some(params);
+            return Some((params, false));
         }
         self.advance();
+
         if self.stream.is(TokenKind::CParen) {
             self.advance();
-            return Some(params);
+            return Some((params, false));
         }
 
         loop {
+            if self.stream.is(TokenKind::DotDot) {
+                self.advance();
+                is_variadic = true;
+                break;
+            }
+
             let name = self.read_ident()?;
             self.consume_safely(TokenKind::Colon)?;
             let ty = self.parse_type()?;
             params.push((name, ty));
+
             if self.stream.is(TokenKind::Comma) {
                 self.advance();
                 continue;
             }
             break;
         }
+
         self.consume_safely(TokenKind::CParen)?;
-        Some(params)
+        Some((params, is_variadic))
     }
 
     fn parse_return_type(&mut self) -> Type {

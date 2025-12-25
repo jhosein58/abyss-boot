@@ -29,6 +29,20 @@ impl TypeChecker {
         }
     }
 
+    fn are_types_compatible(&self, target: &Type, source: &Type) -> bool {
+        if target == source {
+            return true;
+        }
+
+        match (target, source) {
+            (Type::Pointer(_), Type::Pointer(inner)) if **inner == Type::Void => true,
+
+            (Type::Pointer(inner), Type::Pointer(_)) if **inner == Type::Void => true,
+
+            _ => false,
+        }
+    }
+
     pub fn check(mut self, program: FlatProgram) -> FlatProgram {
         for mut func in program.functions {
             if !func.generics.is_empty() {
@@ -257,29 +271,41 @@ impl TypeChecker {
     fn check_stmt(&mut self, stmt: &mut Stmt) {
         match stmt {
             Stmt::Let(name, ty_opt, expr_opt) => {
-                let inferred_ty = if let Some(expr) = expr_opt {
+                if let Some(expr) = expr_opt {
                     let (new_expr, expr_ty) = self.infer_expr(expr.clone());
                     *expr = new_expr;
-                    expr_ty
-                } else {
-                    Type::Void
-                };
 
-                let final_ty = match ty_opt {
-                    Some(explicit_ty) => {
-                        if *explicit_ty != inferred_ty {
-                            panic!("Type mismatch in let binding for {}", name);
+                    match ty_opt {
+                        Some(explicit_ty) => {
+                            if !self.are_types_compatible(explicit_ty, &expr_ty) {
+                                panic!(
+                                    "Type mismatch in let binding for '{}': expected {:?}, found {:?}",
+                                    name, explicit_ty, expr_ty
+                                );
+                            }
                         }
-                        explicit_ty.clone()
-                    }
-                    None => {
-                        *ty_opt = Some(inferred_ty.clone());
-                        inferred_ty
-                    }
-                };
+                        None => {
+                            *ty_opt = Some(expr_ty.clone());
+                        }
+                    };
 
-                self.register_var(name.clone(), final_ty);
+                    let final_ty = ty_opt.as_ref().unwrap().clone();
+                    self.register_var(name.clone(), final_ty);
+                } else {
+                    match ty_opt {
+                        Some(explicit_ty) => {
+                            self.register_var(name.clone(), explicit_ty.clone());
+                        }
+                        None => {
+                            panic!(
+                                "Type annotation required for uninitialized variable '{}'",
+                                name
+                            );
+                        }
+                    }
+                }
             }
+
             Stmt::Assign(lhs, rhs) => {
                 let (new_lhs, _) = self.infer_expr(lhs.clone());
                 let (new_rhs, _) = self.infer_expr(rhs.clone());
@@ -613,7 +639,8 @@ impl TypeChecker {
                     Type::Array(Box::new(elem_ty), len),
                 )
             }
-            _ => (Expr::Lit(lit), Type::Void),
+
+            Lit::Null => (Expr::Lit(lit), Type::Pointer(Box::new(Type::Void))),
         }
     }
     fn handle_function_call(

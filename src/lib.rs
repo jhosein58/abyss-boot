@@ -11,7 +11,7 @@ use std::{
 };
 use tempfile::TempDir;
 
-pub use abyss_codegen::ctarget::ctarget::CTarget;
+pub use abyss_codegen::ctarget::c_target::CTarget;
 
 static TCC_MINIMAL_FS: Dir = include_dir!("tcc_minimal");
 
@@ -22,6 +22,7 @@ pub struct TCCState {
 
 pub const TCC_OUTPUT_MEMORY: i32 = 1;
 pub const TCC_RELOCATE_AUTO: *mut c_void = 1 as *mut c_void;
+pub const TCC_OUTPUT_EXE: i32 = 2;
 
 unsafe extern "C" {
     pub fn tcc_new() -> *mut TCCState;
@@ -34,6 +35,7 @@ unsafe extern "C" {
     pub fn tcc_set_lib_path(s: *mut TCCState, pathname: *const c_char) -> c_int;
     pub fn tcc_add_symbol(s: *mut TCCState, name: *const c_char, func_ptr: *const c_void) -> c_int;
     pub fn tcc_set_options(s: *mut TCCState, options: *const c_char) -> c_int;
+    pub fn tcc_output_file(s: *mut TCCState, filename: *const c_char) -> c_int;
 }
 
 pub struct AbyssJit {
@@ -89,6 +91,26 @@ impl AbyssJit {
             let ret = tcc_compile_string(self.state, c_str.as_ptr());
             if ret == -1 {
                 return Err("Compilation failed".to_string());
+            }
+        }
+        Ok(())
+    }
+
+    pub fn compile_to_file(&mut self, c_code: &str, output_filename: &str) -> Result<(), String> {
+        let c_str = CString::new(c_code).unwrap();
+        let out_name = CString::new(output_filename).unwrap();
+
+        unsafe {
+            tcc_set_output_type(self.state, TCC_OUTPUT_EXE);
+
+            let ret = tcc_compile_string(self.state, c_str.as_ptr());
+            if ret == -1 {
+                return Err("Compilation failed".to_string());
+            }
+
+            let ret = tcc_output_file(self.state, out_name.as_ptr());
+            if ret == -1 {
+                return Err("Failed to output file".to_string());
             }
         }
         Ok(())
@@ -152,6 +174,7 @@ pub struct Abyss<'a, T: Target> {
     target: T,
     jit: AbyssJit,
     path: String,
+    compiled_code: String,
 }
 
 impl<'a, T: Target> Abyss<'a, T> {
@@ -161,6 +184,7 @@ impl<'a, T: Target> Abyss<'a, T> {
             parser: Parser::new(source, path),
             target,
             jit: AbyssJit::new().unwrap(),
+            compiled_code: String::new(),
         }
     }
 
@@ -203,15 +227,22 @@ impl<'a, T: Target> Abyss<'a, T> {
 
         let mut compiler = Director::new(&mut self.target);
         compiler.process_program(&ir);
+
         self.target.emit()
+    }
+
+    pub fn emit(&mut self) -> String {
+        self.compiled_code.clone()
     }
 
     pub fn add_fn(&mut self, name: &str, func: *const c_void) {
         self.jit.add_function(name, func);
     }
+    pub fn get_fn<F>(&mut self, name: &str) -> Option<F> {
+        self.jit.get_function(name)
+    }
 
-    pub fn run(&mut self) {
-        let t = Instant::now();
+    fn link(&mut self) {
         unsafe extern "C" {
             fn printf(format: *const c_char, ...) -> c_int;
             fn memset(s: *mut c_void, c: c_int, n: usize) -> *mut c_void;
@@ -224,31 +255,36 @@ impl<'a, T: Target> Abyss<'a, T> {
             fn exit(status: c_int) -> !;
         }
 
+        self.jit.add_function("printf", printf as *const c_void);
+        self.jit.add_function("memset", memset as *const c_void);
+        self.jit.add_function("memcpy", memcpy as *const c_void);
+        self.jit.add_function("malloc", malloc as *const c_void);
+        self.jit.add_function("realloc", realloc as *const c_void);
+        self.jit.add_function("free", free as *const c_void);
+        self.jit.add_function("exit", exit as *const c_void);
+    }
+
+    pub fn process(&mut self) {
+        let t = Instant::now();
+
         let code = self.compile();
-        println!("{}", code);
+        self.compiled_code = code.clone();
+        //println!("Compiled code: {}", code);
 
+        self.link();
         let jit = &mut self.jit;
-
-        jit.add_function("printf", printf as *const c_void);
-        jit.add_function("memset", memset as *const c_void);
-        jit.add_function("memcpy", memcpy as *const c_void);
-        jit.add_function("malloc", malloc as *const c_void);
-        jit.add_function("realloc", realloc as *const c_void);
-        jit.add_function("free", free as *const c_void);
-        jit.add_function("exit", exit as *const c_void);
 
         jit.compile(&code).expect("Compile error");
         jit.finalize().expect("Relocation error");
 
         println!("Finished in: {}ms", t.elapsed().as_millis());
+    }
+    pub fn run(&mut self) {
+        self.process();
         println!("Running...\n");
-
-        type FnType = extern "C" fn();
-
-        let func = jit
-            .get_function::<FnType>("app_main")
-            .expect("Function not found");
-
-        func();
+        (self
+            .jit
+            .get_function::<extern "C" fn()>("app_main")
+            .expect("app_main not found"))();
     }
 }

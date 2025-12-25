@@ -20,7 +20,7 @@ pub mod globals;
 pub mod stmt;
 
 pub struct Parser<'a> {
-    source: &'a str,
+    pub source: &'a str,
     stream: TokenStream<'a>,
     source_map: SourceMap,
     errors: Vec<ParseError>,

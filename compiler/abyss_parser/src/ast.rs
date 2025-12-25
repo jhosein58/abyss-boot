@@ -40,11 +40,22 @@ pub enum Expr {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
     U8,
+    U16,
+    U32,
+    U64,
+    Usize,
+    I8,
+    I16,
+    I32,
     I64,
+    Isize,
+    F32,
     F64,
+    Char,
     Bool,
     Void,
     Pointer(Box<Type>),
+    Const(Box<Type>),
     Array(Box<Type>, usize),
     Struct(Path, Vec<Type>),
     Generic(String),
@@ -61,7 +72,7 @@ pub enum Lit {
     Array(Vec<Expr>),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum BinaryOp {
     Assign, // =
     Add,    // +
@@ -107,6 +118,7 @@ pub struct FunctionDef {
     pub params: Vec<(String, Type)>,
     pub return_type: Type,
     pub body: FunctionBody,
+    pub is_variadic: bool,
 }
 
 #[derive(Debug, Clone)]

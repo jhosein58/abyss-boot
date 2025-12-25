@@ -39,14 +39,29 @@ impl Collector {
     fn convert_type(ast_type: &Type) -> Result<LirType, String> {
         match ast_type {
             Type::U8 => Ok(LirType::U8),
+            Type::U16 => Ok(LirType::U16),
+            Type::U32 => Ok(LirType::U32),
+            Type::U64 => Ok(LirType::U64),
+            Type::Usize => Ok(LirType::Usize),
+            Type::I8 => Ok(LirType::I8),
+            Type::I16 => Ok(LirType::I16),
+            Type::I32 => Ok(LirType::I32),
             Type::I64 => Ok(LirType::I64),
+            Type::Isize => Ok(LirType::Isize),
+            Type::F32 => Ok(LirType::F32),
             Type::F64 => Ok(LirType::F64),
+            Type::Char => Ok(LirType::Char),
             Type::Bool => Ok(LirType::Bool),
             Type::Void => Ok(LirType::Void),
 
             Type::Pointer(inner) => {
                 let inner_lir = Self::convert_type(inner)?;
                 Ok(LirType::Pointer(Box::new(inner_lir)))
+            }
+
+            Type::Const(inner) => {
+                let inner_lir = Self::convert_type(inner)?;
+                Ok(LirType::Const(Box::new(inner_lir)))
             }
 
             Type::Struct(path, generics) => {

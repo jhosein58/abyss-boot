@@ -62,10 +62,21 @@ pub enum TokenKind {
     Not,     // not
     True,    // true
     False,   // false
+    I8,      // i8
+    I16,     // i16
+    I32,     // i32
     I64,     // i64
-    F64,     // f64
+    Isize,   // isize
     U8,      // u8
+    U16,     // u16
+    U32,     // u32
+    U64,     // u64
+    Usize,   // usize
+    F32,     // f32
+    F64,     // f64
+    Char,    // char
     Bool,    // bool
+    Null,    // null
     Pass,    // pass
     Size,    // size
     Mod,     // mod
@@ -87,6 +98,7 @@ pub enum TokenKind {
     ColonColon, // ::
     Semi,       // ;
     Dot,        // .
+    DotDot,     // ..
     OParen,     // (
     CParen,     // )
     OBrace,     // {
@@ -132,10 +144,25 @@ impl TokenKind {
             "as" => TokenKind::As,
             "true" => TokenKind::True,
             "false" => TokenKind::False,
+
+            "i8" => TokenKind::I8,
+            "i16" => TokenKind::I16,
+            "i32" => TokenKind::I32,
             "i64" => TokenKind::I64,
-            "f64" => TokenKind::F64,
+            "isize" => TokenKind::Isize,
+
             "u8" => TokenKind::U8,
+            "u16" => TokenKind::U16,
+            "u32" => TokenKind::U32,
+            "u64" => TokenKind::U64,
+            "usize" => TokenKind::Usize,
+
+            "f32" => TokenKind::F32,
+            "f64" => TokenKind::F64,
+
+            "char" => TokenKind::Char,
             "bool" => TokenKind::Bool,
+            "null" => TokenKind::Null,
             "pass" => TokenKind::Pass,
             "size" => TokenKind::Size,
             "mod" => TokenKind::Mod,
@@ -163,6 +190,7 @@ impl TokenKind {
             "::" => TokenKind::ColonColon,
             ";" => TokenKind::Semi,
             "." => TokenKind::Dot,
+            ".." => TokenKind::DotDot,
             "(" => TokenKind::OParen,
             ")" => TokenKind::CParen,
             "{" => TokenKind::OBrace,
@@ -215,9 +243,20 @@ impl Display for TokenKind {
             TokenKind::True => write!(f, "'true'"),
             TokenKind::False => write!(f, "'false'"),
             TokenKind::I64 => write!(f, "'i64'"),
+            TokenKind::I32 => write!(f, "'i32'"),
+            TokenKind::I16 => write!(f, "'i16'"),
+            TokenKind::I8 => write!(f, "'i8'"),
+            TokenKind::Isize => write!(f, "'isize'"),
             TokenKind::F64 => write!(f, "'f64'"),
+            TokenKind::F32 => write!(f, "'f32'"),
             TokenKind::U8 => write!(f, "'u8'"),
+            TokenKind::U16 => write!(f, "'u16'"),
+            TokenKind::U32 => write!(f, "'u32'"),
+            TokenKind::U64 => write!(f, "'u64'"),
+            TokenKind::Usize => write!(f, "'usize'"),
+            TokenKind::Char => write!(f, "'char'"),
             TokenKind::Bool => write!(f, "'bool'"),
+            TokenKind::Null => write!(f, "'null'"),
             TokenKind::Pass => write!(f, "'pass'"),
             TokenKind::Size => write!(f, "'size'"),
             TokenKind::Mod => write!(f, "'mod'"),
@@ -239,6 +278,7 @@ impl Display for TokenKind {
             TokenKind::ColonColon => write!(f, " '::'"),
             TokenKind::Semi => write!(f, "';'"),
             TokenKind::Dot => write!(f, "'.'"),
+            TokenKind::DotDot => write!(f, "'..'"),
             TokenKind::OParen => write!(f, "'('"),
             TokenKind::CParen => write!(f, "')'"),
             TokenKind::OBrace => write!(f, "'{{'"),

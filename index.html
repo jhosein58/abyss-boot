@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Abyss Output - main.a</title>
+    <style>
+        body { background-color: #1e1e1e; color: #d4d4d4; font-family: 'Courier New', monospace; padding: 20px; }
+        h1 { color: #61afef; border-bottom: 1px solid #3e4451; padding-bottom: 10px; }
+        #console-output {
+            background: #282c34;
+            padding: 15px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            border: 1px solid #3e4451;
+        }
+        .log-line { margin: 5px 0; border-bottom: 1px solid #333; padding-bottom: 2px; }
+    </style>
+</head>
+<body>
+    <h1>Abyss Execution Output (main.a)</h1>
+    <div id="console-output">Waiting for output...</div>
+
+    <script>
+        const outputDiv = document.getElementById('console-output');
+        outputDiv.innerHTML = '';
+
+        const originalLog = console.log;
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+
+            const line = document.createElement('div');
+            line.className = 'log-line';
+            line.innerText = args.join(' ');
+            outputDiv.appendChild(line);
+        };
+
+        // --- Abyss ---
+
+const MEM_SIZE = 64 * 1024 * 1024;
+const MEM = new ArrayBuffer(MEM_SIZE);
+const DV = new DataView(MEM);
+const U8 = new Uint8Array(MEM);
+let HEAP_PTR = 8;
+function _malloc(size) {
+    let ptr = HEAP_PTR;
+    HEAP_PTR += size;
+    if (HEAP_PTR % 8 !== 0) HEAP_PTR += (8 - (HEAP_PTR % 8));
+    return ptr;
+}
+function _free(ptr) { }
+function _realloc(ptr, new_size) {
+    let new_ptr = _malloc(new_size);
+    _memcpy(new_ptr, ptr, new_size);
+    return new_ptr;
+}
+function _addr(v) { return (v instanceof Ref) ? v.a : v; }
+
+Number.prototype.add = function(off) { return new Ref(this + off, 'u8'); };
+
+class Ref {
+    constructor(addr, type) { this.a = addr | 0; this.t = type || 'i64'; }
+    valueOf() {
+        switch(this.t) {
+            case 'i64': return Number(DV.getBigInt64(this.a, true));
+            case 'f64': return DV.getFloat64(this.a, true);
+            case 'u8': return DV.getUint8(this.a);
+            default: return DV.getInt32(this.a, true);
+        }
+    }
+    set(val) {
+        switch(this.t) {
+            case 'i64': DV.setBigInt64(this.a, BigInt(val), true); break;
+            case 'f64': DV.setFloat64(this.a, val, true); break;
+            case 'u8': DV.setUint8(this.a, val); break;
+            default: DV.setInt32(this.a, val, true); break;
+        }
+        return val;
+    }
+    add(off) { return new Ref(this.a + off, this.t); }
+    cast(type) { return new Ref(this.a, type); }
+    get addr() { return this.a; }
+}
+
+function _memcpy(dest, src, size) {
+    let d = _addr(dest);
+    let s = _addr(src);
+    new Uint8Array(MEM).set(new Uint8Array(MEM, s, size), d);
+    return d;
+}
+function _alloc_struct(vals) {
+    let ptr = _malloc(vals.length * 8);
+    for(let i=0; i<vals.length; i++) {
+        DV.setBigInt64(ptr + i*8, BigInt(vals[i]), true);
+    }
+    return ptr;
+}
+function _alloc_array(vals) {
+    let ptr = _malloc(vals.length);
+    for(let i=0; i<vals.length; i++) {
+        if(vals[i] < 256) U8[ptr+i] = vals[i];
+        else DV.setBigInt64(ptr + i*8, BigInt(vals[i]), true);
+    }
+    return ptr;
+}
+const _OFFSETS = {};
+function _str_from_ptr(ptr) {
+    ptr = _addr(ptr);
+    let s = "";
+    while(true) {
+        let c = U8[ptr];
+        if(c === 0) break;
+        s += String.fromCharCode(c);
+        ptr++;
+    }
+    return s;
+}
+const print = (fmt, val) => {
+    let s = _str_from_ptr(fmt);
+    if(val !== undefined) console.log(s, _addr(val));
+    else console.log(s);
+};
+// pre__rand__Rng
+_OFFSETS['pre__rand__Rng__state'] = 0;
+
+// pre__arr__Arr_0
+_OFFSETS['pre__arr__Arr_0_ptr'] = 0;
+_OFFSETS['pre__arr__Arr_0_len'] = 4;
+_OFFSETS['pre__arr__Arr_0_cap'] = 12;
+
+// pre__string__Str
+_OFFSETS['pre__string__Str_buf'] = 0;
+
+function pre__rand__seed(s) {
+if (Number(s) == Number(0)) {
+return Number(_alloc_struct([1]));
+}
+return Number(_alloc_struct([s]));
+}
+function pre__rand__Rng__next_i64(self) {
+let x = new Ref(self, 'i64').add(0);
+x = Number(x) ^ Number(Number(x) << Number(13));
+x = Number(x) ^ Number(Number(x) >> Number(7));
+x = Number(x) ^ Number(Number(x) << Number(17));
+new Ref(self, 'i64').add(0).set(x);
+return Number(x);
+}
+function pre__string__Str__new() {
+return Number(_alloc_struct([pre__arr__Arr__new_1()]));
+}
+function pre__string__Str__len(self) {
+return Number(new Ref(self, 'i64').add(0).add(4));
+}
+function pre__string__Str__is_empty(self) {
+return Number(Number(new Ref(self, 'i64').add(0).add(4)) == Number(0));
+}
+function pre__string__Str__as_ptr(self) {
+return Number(new Ref(self, 'i64').add(0).add(0));
+}
+function pre__string__Str__push(self, ch) {
+pre__arr__Arr__add_2(((_t = new Ref(self, 'i64').add(0)) instanceof Ref ? _t.addr : _t), ch);
+}
+function pre__string__Str__push_cstr(self, s) {
+let i = 0;
+while (1) {
+let c = s.add(i);
+if (Number(c) == Number(0)) {
+break;
+}
+pre__arr__Arr__add_2(((_t = new Ref(self, 'i64').add(0)) instanceof Ref ? _t.addr : _t), c);
+i = Number(i) + Number(1);
+}
+}
+function pre__string__Str__push_str(self, other) {
+let len = pre__string__Str__len(((_t = new Ref(other, 'i64')) instanceof Ref ? _t.addr : _t));
+let i = 0;
+pre__arr__Arr__reserve_3(((_t = new Ref(self, 'i64').add(0)) instanceof Ref ? _t.addr : _t), len);
+while (Number(i) < Number(len)) {
+pre__arr__Arr__add_2(((_t = new Ref(self, 'i64').add(0)) instanceof Ref ? _t.addr : _t), pre__arr__Arr__get_4(((_t = new Ref(other, 'i64').add(0)) instanceof Ref ? _t.addr : _t), i));
+i = Number(i) + Number(1);
+}
+}
+function pre__string__Str__replace(self, s) {
+pre__arr__Arr__clear_5(((_t = new Ref(self, 'i64').add(0)) instanceof Ref ? _t.addr : _t));
+pre__string__Str__push_cstr(((_t = new Ref(self, 'i64')) instanceof Ref ? _t.addr : _t), s);
+pre__arr__Arr__add_2(((_t = new Ref(self, 'i64').add(0)) instanceof Ref ? _t.addr : _t), 0);
+}
+function pre__string__Str__get_at(self, index) {
+return Number(pre__arr__Arr__get_4(((_t = new Ref(self, 'i64').add(0)) instanceof Ref ? _t.addr : _t), index));
+}
+function pre__string__Str__eq(self, other) {
+if (Number(pre__string__Str__len(((_t = new Ref(self, 'i64')) instanceof Ref ? _t.addr : _t))) != Number(pre__string__Str__len(((_t = new Ref(other, 'i64')) instanceof Ref ? _t.addr : _t)))) {
+return Number(0);
+}
+let len = pre__string__Str__len(((_t = new Ref(self, 'i64')) instanceof Ref ? _t.addr : _t));
+let i = 0;
+while (Number(i) < Number(len)) {
+if (Number(pre__arr__Arr__get_4(((_t = new Ref(self, 'i64').add(0)) instanceof Ref ? _t.addr : _t), i)) != Number(pre__arr__Arr__get_4(((_t = new Ref(other, 'i64').add(0)) instanceof Ref ? _t.addr : _t), i))) {
+return Number(0);
+}
+i = Number(i) + Number(1);
+}
+return Number(1);
+}
+function pre__string__Str__from(s) {
+let st = _malloc(20);
+_memcpy(st, pre__string__Str__new(), 20);
+pre__string__Str__push_cstr(((_t = st) instanceof Ref ? _t.addr : _t), s);
+return Number(st);
+}
+function pre__string__Str__clone(self) {
+let new_str = _malloc(20);
+_memcpy(new_str, pre__string__Str__new(), 20);
+pre__string__Str__push_str(((_t = new_str) instanceof Ref ? _t.addr : _t), self);
+return Number(new_str);
+}
+function pre__string__Str__clear(self) {
+pre__arr__Arr__clear_5(((_t = new Ref(self, 'i64').add(0)) instanceof Ref ? _t.addr : _t));
+}
+function pre__string__Str__destroy(self) {
+pre__arr__Arr__destroy_6(((_t = new Ref(self, 'i64').add(0)) instanceof Ref ? _t.addr : _t));
+}
+function pre__string__Str__print(self) {
+print(pre__string__Str__as_ptr(((_t = new Ref(self, 'i64')) instanceof Ref ? _t.addr : _t)), 0);
+}
+function app_main() {
+{
+let i = Number(0) - Number(1);
+while (Number(Number(i) + Number(1)) < Number(10)) {
+i = Number(i) + Number(1);
+print(_alloc_array([0]), i);
+}
+}
+}
+function pre__arr__Arr__new_1() {
+return Number(_alloc_struct([0, 0, 0]));
+}
+function pre__arr__Arr__add_2(self, val) {
+if (Number(new Ref(self, 'i64').add(4)) == Number(new Ref(self, 'i64').add(12))) {
+pre__arr__Arr__reserve_3(((_t = new Ref(self, 'i64')) instanceof Ref ? _t.addr : _t), 1);
+}
+let target_slot = Number(new Ref(self, 'i64').add(0)) + Number(new Ref(self, 'i64').add(4));
+new Ref(target_slot, 'i64').set(val);
+new Ref(self, 'i64').add(4).set(Number(new Ref(self, 'i64').add(4)) + Number(1));
+}
+function pre__arr__Arr__reserve_3(self, additional) {
+let needed = Number(new Ref(self, 'i64').add(4)) + Number(additional);
+if (Number(needed) > Number(new Ref(self, 'i64').add(12))) {
+let new_cap = 0;
+if (Number(new Ref(self, 'i64').add(12)) == Number(0)) {
+if (Number(needed) > Number(4)) {
+new_cap = needed;
+}
+else {
+new_cap = 4;
+}
+}
+else {
+new_cap = Number(new Ref(self, 'i64').add(12)) * Number(2);
+if (Number(new_cap) < Number(needed)) {
+new_cap = needed;
+}
+}
+let new_size_bytes = Number(new_cap) * Number(1);
+let new_ptr = Number(_realloc(new Ref(self, 'i64').add(0), new_size_bytes));
+new Ref(self, 'i64').add(0).set(new_ptr);
+new Ref(self, 'i64').add(12).set(new_cap);
+}
+}
+function pre__arr__Arr__get_4(self, index) {
+let target_slot = Number(new Ref(self, 'i64').add(0)) + Number(index);
+return Number(new Ref(target_slot, 'i64'));
+}
+function pre__arr__Arr__clear_5(self) {
+new Ref(self, 'i64').add(4).set(0);
+}
+function pre__arr__Arr__destroy_6(self) {
+if (Number(new Ref(self, 'i64').add(0)) != Number(0)) {
+_free(new Ref(self, 'i64').add(0));
+}
+new Ref(self, 'i64').add(0).set(0);
+new Ref(self, 'i64').add(4).set(0);
+new Ref(self, 'i64').add(12).set(0);
+}
+
+app_main();
+
+        // --- Abyss ---
+    </script>
+</body>
+</html>

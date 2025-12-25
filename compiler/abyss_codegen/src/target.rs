@@ -29,6 +29,7 @@ pub trait Target {
         name: &str,
         params: &[(String, LirType)],
         return_type: &LirType,
+        is_variadic: bool,
     );
 
     fn declare_function_proto(
@@ -36,10 +37,16 @@ pub trait Target {
         name: &str,
         params: &[(String, LirType)],
         return_type: &LirType,
+        is_variadic: bool,
     );
 
-    fn begin_function(&mut self, name: &str, params: &[(String, LirType)], return_type: &LirType);
-
+    fn begin_function(
+        &mut self,
+        name: &str,
+        params: &[(String, LirType)],
+        return_type: &LirType,
+        is_variadic: bool,
+    );
     fn end_function(&mut self);
 
     // ========================================================================

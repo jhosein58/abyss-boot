@@ -170,6 +170,10 @@ impl<'a> Parser<'a> {
                 self.advance();
                 Some(Expr::Lit(Lit::Bool(false)))
             }
+            TokenKind::Null => {
+                self.advance();
+                Some(Expr::Lit(Lit::Null))
+            }
 
             TokenKind::Ident => {
                 let path = self.parse_path()?;
@@ -468,6 +472,12 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_type(&mut self) -> Option<Type> {
+        if self.stream.is(TokenKind::Const) {
+            self.advance();
+            let inner_type = self.parse_type()?;
+            return Some(Type::Const(Box::new(inner_type)));
+        }
+
         if self.stream.is(TokenKind::Amp) {
             self.advance();
             let inner_type = self.parse_type()?;
@@ -476,14 +486,34 @@ impl<'a> Parser<'a> {
 
         let mut base_type = if self.stream.consume(TokenKind::U8) {
             Type::U8
+        } else if self.stream.consume(TokenKind::U16) {
+            Type::U16
+        } else if self.stream.consume(TokenKind::U32) {
+            Type::U32
+        } else if self.stream.consume(TokenKind::U64) {
+            Type::U64
+        } else if self.stream.consume(TokenKind::Usize) {
+            Type::Usize
+        } else if self.stream.consume(TokenKind::I8) {
+            Type::I8
+        } else if self.stream.consume(TokenKind::I16) {
+            Type::I16
+        } else if self.stream.consume(TokenKind::I32) {
+            Type::I32
         } else if self.stream.consume(TokenKind::I64) {
             Type::I64
+        } else if self.stream.consume(TokenKind::Isize) {
+            Type::Isize
+        } else if self.stream.consume(TokenKind::F32) {
+            Type::F32
         } else if self.stream.consume(TokenKind::F64) {
             Type::F64
         } else if self.stream.consume(TokenKind::Bool) {
             Type::Bool
         } else if self.stream.consume(TokenKind::Pass) {
             Type::Void
+        } else if self.stream.consume(TokenKind::Char) {
+            Type::Char
         } else if self.stream.is(TokenKind::Ident) {
             let path = self.parse_path()?;
 

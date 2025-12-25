@@ -1,10 +1,7 @@
 use abyss::{Abyss, CTarget};
 
 fn main() {
-    let path = "main.a";
-
-    let code = std::fs::read_to_string(path).expect("Failed to read main file");
-    let mut abyss = Abyss::new(&code, path, CTarget::new());
-
+    let mut abyss = Abyss::new(include_str!("../main.a"), "main.a", CTarget::new());
     abyss.run();
+    //println!("{}", abyss.emit())
 }

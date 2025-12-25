@@ -51,10 +51,10 @@ impl<'a, T: Target> Director<'a, T> {
 
             if func.is_extern {
                 self.target
-                    .declare_extern_function(&func.name, &params, ret_ty);
+                    .declare_extern_function(&func.name, &params, ret_ty, func.is_variadic);
             } else {
                 self.target
-                    .declare_function_proto(&func.name, &params, ret_ty);
+                    .declare_function_proto(&func.name, &params, ret_ty, func.is_variadic);
             }
         }
 
@@ -75,7 +75,8 @@ impl<'a, T: Target> Director<'a, T> {
         let ret_ty = &func.return_type;
         let params = self.get_func_params(func);
 
-        self.target.begin_function(&func.name, &params, ret_ty);
+        self.target
+            .begin_function(&func.name, &params, ret_ty, func.is_variadic);
 
         for stmt in &func.body {
             self.process_stmt(stmt);
