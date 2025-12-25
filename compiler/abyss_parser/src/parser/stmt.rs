@@ -8,10 +8,13 @@ impl<'a> Parser<'a> {
     pub fn parse_stmt(&mut self, scope: &mut Vec<Stmt>) -> Option<Stmt> {
         let stmt = match self.stream.current().kind {
             Tk::Let => self.parse_let_stmt()?,
+            Tk::Fn => self.parse_nested_function()?,
             Tk::Ret => self.parse_ret_stmt()?,
             Tk::If => self.parse_if_stmt(scope)?,
+
             Tk::While => self.parse_while_stmt()?,
             Tk::For => self.parse_for_stmt(scope)?,
+            Tk::Forever => self.parse_forever_stmt()?,
 
             Tk::Out => self.parse_out_stmt()?,
             Tk::Next => self.parse_next_stmt()?,
@@ -53,6 +56,22 @@ impl<'a> Parser<'a> {
         }
 
         Some(Stmt::Expr(lhs_expr))
+    }
+
+    fn parse_nested_function(&mut self) -> Option<Stmt> {
+        let func_def = self.parse_function(false)?;
+
+        Some(Stmt::FunctionDef(Box::new(func_def)))
+    }
+    fn parse_forever_stmt(&mut self) -> Option<Stmt> {
+        self.consume(Tk::Forever)?;
+
+        let body_stmts = self.parse_block()?;
+
+        Some(Stmt::While(
+            Expr::Lit(Lit::Bool(true)),
+            Box::new(Stmt::Block(body_stmts)),
+        ))
     }
 
     fn parse_let_stmt(&mut self) -> Option<Stmt> {

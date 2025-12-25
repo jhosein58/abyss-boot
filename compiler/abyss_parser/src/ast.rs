@@ -3,6 +3,7 @@ pub type Path = Vec<String>;
 #[derive(Debug, Clone)]
 pub enum Stmt {
     Mod(Path, Option<Box<Stmt>>),
+    Use(Path),
     Let(String, Option<Type>, Option<Expr>),
     Const(String, Option<Type>, Option<Expr>),
     FunctionDef(Box<FunctionDef>),
@@ -62,19 +63,20 @@ pub enum Lit {
 
 #[derive(Debug, Clone, Copy)]
 pub enum BinaryOp {
-    Add, // +
-    Sub, // -
-    Mul, // *
-    Div, // /
-    Mod, // %
-    Eq,  // ==
-    Neq, // !=
-    Lt,  // <
-    Gt,  // >
-    Lte, // <=
-    Gte, // >=
-    And, // and
-    Or,  // or
+    Assign, // =
+    Add,    // +
+    Sub,    // -
+    Mul,    // *
+    Div,    // /
+    Mod,    // %
+    Eq,     // ==
+    Neq,    // !=
+    Lt,     // <
+    Gt,     // >
+    Lte,    // <=
+    Gte,    // >=
+    And,    // and
+    Or,     // or
 
     BitAnd, // &
     BitOr,  // |
@@ -137,4 +139,5 @@ pub struct Program {
     pub structs: Vec<StructDef>,
     pub functions: Vec<FunctionDef>,
     pub statics: Vec<StaticDef>,
+    pub uses: Vec<Path>,
 }

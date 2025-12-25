@@ -1,11 +1,20 @@
-mod stdlib.rand;
 
-fn entry {
-   let rng: rand::Rng = rand::seed(42);
+mod stdlib::pre;
+use pre::string::Str;
 
-   for 5 {
-       let random_number = rng.range(-100, 100);
-       printf("%d\n", random_number)
-   }
+fn app_main {
+
+   let a = Str.from("dyn Alireza")
+
+   let b = "stc Alerza"
+
+
+   -- آ رو میشه تغییر داد ولی بی ثابته
+
+   a.push_str("hello")
+   a.print()
+
 }
+
+
 

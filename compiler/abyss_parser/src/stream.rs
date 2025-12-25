@@ -112,4 +112,8 @@ impl<'a> TokenStream<'a> {
             false
         }
     }
+
+    pub fn current_mut(&mut self) -> &mut Token {
+        &mut self.current
+    }
 }

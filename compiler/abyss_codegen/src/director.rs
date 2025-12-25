@@ -16,6 +16,8 @@ impl<'a, T: Target> Director<'a, T> {
         if let Some(first) = items.first() {
             match first {
                 LirExpr::Lit(LirLiteral::Int(_)) => Some(LirType::I64),
+                LirExpr::Lit(LirLiteral::Byte(_)) => Some(LirType::U8),
+
                 LirExpr::Lit(LirLiteral::Float(_)) => Some(LirType::F64),
                 LirExpr::Lit(LirLiteral::Bool(_)) => Some(LirType::Bool),
                 _ => Some(LirType::I64),

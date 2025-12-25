@@ -1,5 +1,6 @@
 use abyss_analyzer::{
     collector::Collector, flattener::Flattener, hir::FlatProgram, ir::Ir, lir::LirProgram,
+    type_checker::TypeChecker,
 };
 use abyss_codegen::{director::Director, target::Target};
 use abyss_parser::{ast::Program, parser::Parser};
@@ -150,11 +151,13 @@ pub struct Abyss<'a, T: Target> {
     parser: Parser<'a>,
     target: T,
     jit: AbyssJit,
+    path: String,
 }
 
 impl<'a, T: Target> Abyss<'a, T> {
     pub fn new(source: &'a str, path: &str, target: T) -> Self {
         Self {
+            path: path.to_string(),
             parser: Parser::new(source, path),
             target,
             jit: AbyssJit::new().unwrap(),
@@ -166,25 +169,38 @@ impl<'a, T: Target> Abyss<'a, T> {
     }
 
     pub fn parse(&mut self) -> Program {
-        self.parser.parse_program()
+        let prog = self.parser.parse_program();
+        println!("{}", self.parser.format_errors(&self.path));
+        prog
     }
 
     pub fn parse_flatten(&mut self) -> FlatProgram {
         let program = self.parse();
 
         let flattener = Flattener::new();
+
         flattener.flatten(program)
     }
 
-    pub fn build_ir(&mut self) -> LirProgram {
+    pub fn parse_typed(&mut self) -> FlatProgram {
         let program = self.parse_flatten();
+
+        let tc = TypeChecker::new();
+        tc.check(program)
+    }
+
+    pub fn build_ir(&mut self) -> LirProgram {
+        let program = self.parse_typed();
+
         let ctx = Collector::collect(&program);
         let ir = Ir::build(&program, ctx.expect("Context error."));
+
         ir
     }
 
     pub fn compile(&mut self) -> String {
         let ir = self.build_ir();
+
         let mut compiler = Director::new(&mut self.target);
         compiler.process_program(&ir);
         self.target.emit()
@@ -209,6 +225,8 @@ impl<'a, T: Target> Abyss<'a, T> {
         }
 
         let code = self.compile();
+        println!("{}", code);
+
         let jit = &mut self.jit;
 
         jit.add_function("printf", printf as *const c_void);
@@ -228,7 +246,7 @@ impl<'a, T: Target> Abyss<'a, T> {
         type FnType = extern "C" fn();
 
         let func = jit
-            .get_function::<FnType>("entry")
+            .get_function::<FnType>("app_main")
             .expect("Function not found");
 
         func();

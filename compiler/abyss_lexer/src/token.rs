@@ -69,6 +69,7 @@ pub enum TokenKind {
     Pass,    // pass
     Size,    // size
     Mod,     // mod
+    Use,     // use
 
     Plus,       // +
     Minus,      // -
@@ -138,6 +139,7 @@ impl TokenKind {
             "pass" => TokenKind::Pass,
             "size" => TokenKind::Size,
             "mod" => TokenKind::Mod,
+            "use" => TokenKind::Use,
 
             _ => TokenKind::Ident,
         }
@@ -219,6 +221,7 @@ impl Display for TokenKind {
             TokenKind::Pass => write!(f, "'pass'"),
             TokenKind::Size => write!(f, "'size'"),
             TokenKind::Mod => write!(f, "'mod'"),
+            TokenKind::Use => write!(f, "'use'"),
 
             TokenKind::Plus => write!(f, "'+'"),
             TokenKind::Minus => write!(f, "'-'"),

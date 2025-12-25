@@ -1,0 +1,134 @@
+pub struct Arr<T> {
+    ptr: &T,
+    len: i64,
+    cap: i64
+}
+
+
+
+impl<T> Arr<T> {
+
+    fn new: Arr<T> {
+        ret struct Arr::<T> {
+            ptr: 0,
+            len: 0,
+            cap: 0
+        }
+    }
+    
+    fn with_capacity(initial_cap: i64): Arr<T> {
+        let list = new::<T>()
+        list.reserve(initial_cap)
+        ret list
+    }
+
+    fn is_empty(self: &Arr<T>): i64 { 
+        ret self.len == 0
+    }
+
+    fn last(self: &Arr<T>): T {
+        ret self.get(self.len - 1)
+    }
+
+    fn reserve(self: &Arr<T>, additional: i64) {
+        let needed: i64 = self.len + additional;
+        if needed > self.cap {
+            let new_cap: i64 = 0;
+            if self.cap == 0 {
+                if needed > 4 {
+                    new_cap = needed
+                } else {
+                    new_cap = 4;
+                }
+            } else {
+                new_cap = self.cap * 2;
+                if new_cap < needed {
+                    new_cap = needed
+                }
+            }
+            
+            let new_size_bytes: i64 = new_cap * size(T);
+            let new_ptr: &T = realloc(self.ptr, new_size_bytes) as &T;
+            
+            self.ptr = new_ptr;
+            self.cap = new_cap;
+        }
+    }
+
+    fn add(self: &Arr<T>, val: T) {
+        if self.len == self.cap {
+            self.reserve(1) 
+        }
+
+        let target_slot: &T = self.ptr + self.len;
+        *target_slot = val;
+
+        self.len += 1
+    }
+
+    fn pop(self: &Arr<T>): T { 
+        self.len -= 1;
+        let target_slot: &T = self.ptr + self.len;
+        ret *target_slot;
+    }
+
+    fn get(self: &Arr<T>, index: i64): T {
+        let target_slot: &T = self.ptr + index;
+        ret *target_slot;
+    }
+    fn ref(self: &Arr<T>, index: i64): &T {
+        let target_slot: &T = self.ptr + index;
+        ret target_slot;
+    }
+
+    fn set(self: &Arr<T>, index: i64, val: T) {
+        let target_slot: &T = self.ptr + index;
+        *target_slot = val;
+    }
+
+    fn insert(self: &Arr<T>, index: i64, val: T) {
+
+        if self.len == self.cap {
+            self.reserve(1)
+        }
+
+        let i: i64 = self.len
+        while i > index {
+            let prev: &T = self.ptr + (i - 1);
+            let curr: &T = self.ptr + i;
+            *curr = *prev;
+            i -= 1
+        }
+
+        let target_slot: &T = self.ptr + index;
+        *target_slot = val;
+        self.len += 1;
+    }
+
+    fn remove(self: &Arr<T>, index: i64): T {
+        let item: T = self.get(index);
+
+        let i: i64 = index;
+        while i < (self.len - 1) {
+            let next_val: T = self.get(i + 1);
+            self.set(i, next_val);
+            i += 1;
+        }
+
+        self.len -= 1;
+        ret item;
+    }
+
+    fn clear(self: &Arr<T>) {
+        self.len = 0;
+    }
+
+    fn destroy(self: &Arr<T>) {
+        if self.ptr != 0 {
+            free(self.ptr)
+        }
+        self.ptr = 0;
+        self.len = 0;
+        self.cap = 0;
+    }
+}

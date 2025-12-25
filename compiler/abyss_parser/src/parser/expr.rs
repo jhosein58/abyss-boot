@@ -12,7 +12,7 @@ use crate::{
 #[repr(u8)]
 enum Precedence {
     _None = 0,
-    _Assignment = 1,
+    Assignment = 1,
     Or = 2,
     And = 3,
     BitwiseOr = 4,
@@ -31,13 +31,62 @@ impl Precedence {
     fn get_next_power(&self) -> u8 {
         let val = *self as u8;
         match self {
-            Self::_Assignment => val,
+            Self::Assignment => val,
             _ => val + 1,
         }
     }
 }
 
 impl<'a> Parser<'a> {
+    fn convert_right_shift_to_gt(&mut self) {
+        let token = self.stream.current_mut();
+
+        if token.kind == TokenKind::RightShift {
+            token.kind = TokenKind::Gt;
+        }
+    }
+    fn parse_generic_args(&mut self) -> Option<Vec<Type>> {
+        if !self.stream.is(TokenKind::Lt) && !self.stream.is(TokenKind::LeftShift) {
+            return Some(Vec::new());
+        }
+
+        if self.stream.is(TokenKind::LeftShift) {
+            self.emit_error_at_current(ParseErrorKind::Message(
+                "Use space between nested generics: < <".to_string(),
+            ));
+            return None;
+        }
+
+        self.advance();
+        let mut args = Vec::new();
+
+        while !self.stream.is(TokenKind::Gt)
+            && !self.stream.is(TokenKind::RightShift)
+            && !self.stream.is_at_end()
+        {
+            args.push(self.parse_type()?);
+
+            if self.stream.is(TokenKind::Comma) {
+                self.advance();
+            } else {
+                break;
+            }
+        }
+
+        if self.stream.is(TokenKind::Gt) {
+            self.advance();
+        } else if self.stream.is(TokenKind::RightShift) {
+            self.convert_right_shift_to_gt();
+        } else {
+            self.emit_error_at_current(ParseErrorKind::Expected(
+                "'>' to close generic args".to_string(),
+            ));
+            return None;
+        }
+
+        Some(args)
+    }
+
     pub fn parse_expr(&mut self) -> Option<Expr> {
         self.parse_expr_bp(0)
     }
@@ -121,12 +170,64 @@ impl<'a> Parser<'a> {
                 self.advance();
                 Some(Expr::Lit(Lit::Bool(false)))
             }
+
             TokenKind::Ident => {
                 let path = self.parse_path()?;
 
-                if self.stream.is(TokenKind::OBrace) {
-                    let generics = Vec::new();
-                    return self.parse_struct_literal(path, generics);
+                let generics = if self.stream.is(TokenKind::ColonColon) {
+                    if self.stream.is_peek(TokenKind::Lt) {
+                        self.advance();
+                        self.parse_generic_args()?
+                    } else if self.stream.is_peek(TokenKind::LeftShift) {
+                        self.advance();
+                        self.parse_generic_args()?
+                    } else {
+                        Vec::new()
+                    }
+                } else {
+                    Vec::new()
+                };
+
+                if !generics.is_empty() {
+                    if self.stream.is(TokenKind::OParen) {
+                        self.advance();
+                        let mut args = Vec::new();
+                        if !self.stream.is(TokenKind::CParen) {
+                            loop {
+                                args.push(self.parse_expr()?);
+                                if !self.stream.consume(TokenKind::Comma) {
+                                    break;
+                                }
+                            }
+                        }
+                        self.consume(TokenKind::CParen)?;
+                        return Some(Expr::Call(Box::new(Expr::Ident(path)), args, generics));
+                    } else {
+                        if self.stream.is(TokenKind::OBrace) {
+                            return self.parse_struct_literal(path, generics);
+                        }
+
+                        self.emit_error_at_current(ParseErrorKind::Message(
+                            "Expected '(' or '{' after generic type arguments in expression"
+                                .to_string(),
+                        ));
+                        return None;
+                    }
+                }
+
+                if self.stream.is(TokenKind::OParen) {
+                    self.advance();
+                    let mut args = Vec::new();
+                    if !self.stream.is(TokenKind::CParen) {
+                        loop {
+                            args.push(self.parse_expr()?);
+                            if !self.stream.consume(TokenKind::Comma) {
+                                break;
+                            }
+                        }
+                    }
+                    self.consume(TokenKind::CParen)?;
+                    return Some(Expr::Call(Box::new(Expr::Ident(path)), args, Vec::new()));
                 }
 
                 Some(Expr::Ident(path))
@@ -178,6 +279,30 @@ impl<'a> Parser<'a> {
                 let rhs = self.parse_expr_bp(Precedence::Unary as u8)?;
                 Some(Expr::Unary(op, Box::new(rhs)))
             }
+
+            TokenKind::Struct => {
+                self.advance();
+                let path = self.parse_path()?;
+                let generics = if self.stream.is(TokenKind::ColonColon) {
+                    if self.stream.is_peek(TokenKind::Lt) {
+                        self.advance();
+                        self.parse_generic_args()?
+                    } else {
+                        Vec::new()
+                    }
+                } else {
+                    Vec::new()
+                };
+
+                if self.stream.is(TokenKind::OBrace) {
+                    return self.parse_struct_literal(path, generics);
+                } else {
+                    self.emit_error_at_current(ParseErrorKind::Expected(
+                        "'{' after struct type name".to_string(),
+                    ));
+                    return None;
+                }
+            }
             _ => {
                 self.emit_error_at_current(ParseErrorKind::UnexpectedToken {
                     expected: TokenKind::Unknown,
@@ -213,6 +338,14 @@ impl<'a> Parser<'a> {
 
                 let name = self.stream.current_lit().to_string();
                 self.advance();
+
+                let generics = if self.stream.is(TokenKind::ColonColon) {
+                    self.advance();
+                    self.parse_generic_args()?
+                } else {
+                    Vec::new()
+                };
+
                 if self.stream.is(TokenKind::OParen) {
                     self.advance();
 
@@ -227,8 +360,14 @@ impl<'a> Parser<'a> {
                     }
                     self.consume(TokenKind::CParen)?;
 
-                    Some(Expr::MethodCall(Box::new(lhs), name, args, Vec::new()))
+                    Some(Expr::MethodCall(Box::new(lhs), name, args, generics))
                 } else {
+                    if !generics.is_empty() {
+                        self.emit_error_at_current(ParseErrorKind::Message(
+                                      "Field access cannot have generic arguments (did you mean a method call?)".to_string(),
+                                  ));
+                        return None;
+                    }
                     Some(Expr::Member(Box::new(lhs), name))
                 }
             }
@@ -286,6 +425,7 @@ impl<'a> Parser<'a> {
 
     fn get_infix_binding_power(&self, kind: TokenKind) -> Option<Precedence> {
         Some(match kind {
+            TokenKind::Assign => Precedence::Assignment,
             TokenKind::Or => Precedence::Or,
             TokenKind::And => Precedence::And,
             TokenKind::Pipe => Precedence::BitwiseOr,
@@ -304,6 +444,7 @@ impl<'a> Parser<'a> {
 
     fn token_to_binary_op(&self, kind: TokenKind) -> BinaryOp {
         match kind {
+            TokenKind::Assign => BinaryOp::Assign,
             TokenKind::Plus => BinaryOp::Add,
             TokenKind::Minus => BinaryOp::Sub,
             TokenKind::Star => BinaryOp::Mul,
@@ -345,7 +486,10 @@ impl<'a> Parser<'a> {
             Type::Void
         } else if self.stream.is(TokenKind::Ident) {
             let path = self.parse_path()?;
-            Type::Struct(path, Vec::new())
+
+            let generics = self.parse_generic_args()?;
+
+            Type::Struct(path, generics)
         } else {
             self.emit_error_at_current(ParseErrorKind::Expected("type name".to_string()));
             return None;

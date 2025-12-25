@@ -265,7 +265,51 @@ impl Ir {
 
     fn transpile_expr(&self, expr: &Expr) -> LirExpr {
         match expr {
-            Expr::Lit(l) => LirExpr::Lit(Self::transpile_lit(l)),
+            Expr::Lit(Lit::Array(elements)) => {
+                let lir_elems = elements.iter().map(|e| self.transpile_expr(e)).collect();
+
+                LirExpr::ArrayInit(lir_elems)
+            }
+
+            Expr::Lit(Lit::Str(v)) => {
+                let mut lir_elems = Vec::new();
+
+                let content = if v.starts_with('"') && v.ends_with('"') && v.len() >= 2 {
+                    &v[1..v.len() - 1]
+                } else {
+                    v.as_str()
+                };
+
+                let mut chars = content.chars().peekable();
+
+                while let Some(c) = chars.next() {
+                    if c == '\\' {
+                        if let Some(next_char) = chars.next() {
+                            match next_char {
+                                'n' => lir_elems.push(LirExpr::Lit(LirLiteral::Byte(10))),
+                                'r' => lir_elems.push(LirExpr::Lit(LirLiteral::Byte(13))),
+                                't' => lir_elems.push(LirExpr::Lit(LirLiteral::Byte(9))),
+                                '0' => lir_elems.push(LirExpr::Lit(LirLiteral::Byte(0))),
+                                '\\' => lir_elems.push(LirExpr::Lit(LirLiteral::Byte(92))),
+                                '"' => lir_elems.push(LirExpr::Lit(LirLiteral::Byte(34))),
+                                other => {
+                                    lir_elems.push(LirExpr::Lit(LirLiteral::Byte(other as u8)));
+                                }
+                            }
+                        } else {
+                            lir_elems.push(LirExpr::Lit(LirLiteral::Byte(92)));
+                        }
+                    } else {
+                        lir_elems.push(LirExpr::Lit(LirLiteral::Byte(c as u8)));
+                    }
+                }
+
+                lir_elems.push(LirExpr::Lit(LirLiteral::Byte(0)));
+
+                LirExpr::ArrayInit(lir_elems)
+            }
+
+            Expr::Lit(l) => LirExpr::Lit(self.transpile_lit(l)),
             Expr::Ident(path) => LirExpr::Ident(path.join("__")),
             Expr::Binary(l, op, r) => LirExpr::Binary(
                 Box::new(self.transpile_expr(l)),
@@ -355,12 +399,20 @@ impl Ir {
         }
     }
 
-    fn transpile_lit(lit: &Lit) -> LirLiteral {
+    fn transpile_lit(&self, lit: &Lit) -> LirLiteral {
         match lit {
             Lit::Int(v) => LirLiteral::Int(*v),
             Lit::Float(v) => LirLiteral::Float(*v),
             Lit::Bool(v) => LirLiteral::Bool(*v),
-            Lit::Str(v) => LirLiteral::Str(v.clone()),
+            Lit::Str(v) => {
+                let mut bytes: Vec<LirLiteral> =
+                    v.bytes().map(|b| LirLiteral::Int(b as i64)).collect();
+
+                bytes.push(LirLiteral::Int(0));
+
+                LirLiteral::Array(bytes)
+            }
+
             Lit::Null => LirLiteral::Null,
             Lit::Array(_) => LirLiteral::Null,
         }

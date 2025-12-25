@@ -1,0 +1,105 @@
+
+use pre::arr::Arr;
+
+
+struct Str {
+    buf: Arr<u8>
+}
+
+
+
+impl Str {
+    fn new: Str {
+        ret struct Str { buf: Arr.new::<u8>() }
+    }
+
+    fn len(self: &Str): i64 {
+        ret self.buf.len;
+    }
+
+    fn is_empty(self: &Str): i64 {
+        ret self.buf.len == 0;
+    }
+
+    fn as_ptr(self: &Str): &u8 {
+        ret self.buf.ptr;
+    }
+
+    fn push(self: &Str, ch: u8) {
+        self.buf.add(ch);
+    }
+
+    fn push_cstr(self: &Str, s: &u8) {
+        let i = 0;
+        while true {
+            let c = s[i];
+            if c == 0 {
+                out
+            }
+            self.buf.add(c);
+            i += 1;
+        }
+    }
+
+    fn push_str(self: &Str, other: &Str) {
+        let len = other.len();
+        let i = 0;
+        
+        self.buf.reserve(len);
+
+        while i < len {
+            self.buf.add(other.buf.get(i));
+            i += 1;
+        }
+    }
+
+    fn replace(self: &Str, s: &u8) {
+        self.buf.clear();
+        self.push_cstr(s);
+        self.buf.add(0); 
+    }
+
+    fn get_at(self: &Str, index: i64): u8 {
+        ret self.buf.get(index);
+    }
+
+    fn eq(self: &Str, other: &Str): i64 {
+        if self.len() != other.len() {
+            ret 0; 
+        }
+
+        let len = self.len();
+        let i = 0;
+        while i < len {
+            if self.buf.get(i) != other.buf.get(i) {
+                ret 0; 
+            }
+            i += 1;
+        }
+        ret 1; 
+    }
+
+    fn from(s: &u8): Str {
+        let st = Str.new();
+        st.push_cstr(s);
+        ret st;
+    }
+
+    fn clone(self: &Str): Str {
+        let new_str = Str.new();
+        new_str.push_str(self);
+        ret new_str;
+    }
+    
+    fn clear(self: &Str) {
+        self.buf.clear();
+    }
+    
+    fn destroy(self: &Str) {
+        self.buf.destroy();
+    }
+
+    fn print(self: &Str) {
+        print(self.as_ptr(), 0)
+    }
+}

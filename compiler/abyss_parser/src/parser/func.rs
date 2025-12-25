@@ -3,7 +3,7 @@ use std::{fs, path::PathBuf};
 use abyss_lexer::token::TokenKind;
 
 use crate::{
-    ast::{FunctionBody, FunctionDef, Program, StaticDef, StructDef, Type},
+    ast::{FunctionBody, FunctionDef, Program, StaticDef, Stmt, StructDef, Type},
     error::ParseErrorKind,
     parser::Parser,
 };
@@ -11,18 +11,15 @@ use crate::{
 impl<'a> Parser<'a> {
     fn synchronize_func(&mut self) {
         self.stream.advance();
-
         while !self.stream.is_at_end() {
             match self.stream.current().kind {
-                TokenKind::Fn | TokenKind::Struct | TokenKind::Static | TokenKind::Pub => {
-                    return;
-                }
+                TokenKind::Fn | TokenKind::Struct | TokenKind::Static | TokenKind::Pub => return,
                 _ => {}
             }
-
             self.stream.advance();
         }
     }
+
     fn consume_safely(&mut self, expected: TokenKind) -> Option<()> {
         if !self.stream.consume(expected) {
             self.emit_error_at_current(ParseErrorKind::UnexpectedToken {
@@ -34,17 +31,28 @@ impl<'a> Parser<'a> {
         }
         Some(())
     }
-    pub fn parse_function(&mut self, is_pub: bool) -> Option<FunctionDef> {
-        self.consume_safely(TokenKind::Fn)?;
 
-        let name = self.read_ident()?;
+    fn read_ident(&mut self) -> Option<String> {
+        if self.stream.is(TokenKind::Ident) {
+            let ident = self.stream.current_lit().to_string();
+            self.advance();
+            Some(ident)
+        } else {
+            self.emit_error_at_current(ParseErrorKind::Expected("ident".to_string()));
+            self.synchronize_func();
+            None
+        }
+    }
 
-        let mut generics = Vec::new();
+    fn parse_generic_params(&mut self) -> Option<Vec<String>> {
         if self.stream.is(TokenKind::Lt) {
             self.advance();
+            let mut generics = Vec::new();
+
             while !self.stream.is(TokenKind::Gt) && !self.stream.is_at_end() {
                 let gen_name = self.read_ident()?;
                 generics.push(gen_name);
+
                 if self.stream.is(TokenKind::Comma) {
                     self.advance();
                 } else {
@@ -52,12 +60,23 @@ impl<'a> Parser<'a> {
                 }
             }
             self.consume_safely(TokenKind::Gt)?;
+            Some(generics)
+        } else {
+            Some(Vec::new())
         }
+    }
+
+    pub fn parse_function(&mut self, is_pub: bool) -> Option<FunctionDef> {
+        self.consume_safely(TokenKind::Fn)?;
+
+        let name = self.read_ident()?;
+
+        let generics = self.parse_generic_params()?;
 
         let params = self.parse_func_params()?;
         let return_type = self.parse_return_type();
 
-        let body = if self.stream.is(TokenKind::Semi) || self.stream.is(TokenKind::Semi) {
+        let body = if self.stream.is(TokenKind::Semi) {
             self.advance();
             FunctionBody::Extern
         } else {
@@ -84,20 +103,7 @@ impl<'a> Parser<'a> {
 
         let name = self.read_ident()?;
 
-        let mut generics = Vec::new();
-        if self.stream.is(TokenKind::Lt) {
-            self.advance();
-            while !self.stream.is(TokenKind::Gt) && !self.stream.is_at_end() {
-                let gen_name = self.read_ident()?;
-                generics.push(gen_name);
-                if self.stream.is(TokenKind::Comma) {
-                    self.advance();
-                } else {
-                    break;
-                }
-            }
-            self.consume_safely(TokenKind::Gt)?;
-        }
+        let generics = self.parse_generic_params()?;
 
         self.consume_safely(TokenKind::OBrace)?;
 
@@ -126,23 +132,18 @@ impl<'a> Parser<'a> {
         Some(StructDef {
             is_pub,
             name,
-            fields,
             generics,
+            fields,
         })
     }
 
     pub fn parse_static_def(&mut self, is_pub: bool) -> Option<StaticDef> {
         self.consume_safely(TokenKind::Static)?;
-
         let name = self.read_ident()?;
-
         self.consume_safely(TokenKind::Colon)?;
         let ty = self.parse_type()?;
 
         let has_eq = if self.stream.is(TokenKind::Assign) {
-            self.advance();
-            true
-        } else if self.stream.is(TokenKind::Assign) {
             self.advance();
             true
         } else {
@@ -155,12 +156,11 @@ impl<'a> Parser<'a> {
             None
         };
 
-        if !self.stream.consume(TokenKind::Semi) && !self.stream.consume(TokenKind::Semi) {
+        if !self.stream.consume(TokenKind::Semi) {
             self.emit_error_at_current(ParseErrorKind::UnexpectedToken {
                 expected: TokenKind::Semi,
                 found: self.stream.current().kind,
             });
-
             self.synchronize_func();
             return None;
         }
@@ -181,15 +181,12 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn read_ident(&mut self) -> Option<String> {
-        if self.stream.is(TokenKind::Ident) {
-            let ident = self.stream.current_lit().to_string();
-            self.advance();
-            Some(ident)
-        } else {
-            self.emit_error_at_current(ParseErrorKind::Expected("ident".to_string()));
-            self.synchronize_func();
-            None
+    fn consume_generics_usage(&mut self) {
+        if self.stream.consume(TokenKind::Lt) {
+            while !self.stream.is(TokenKind::Gt) && !self.stream.is_at_end() {
+                self.advance();
+            }
+            self.stream.consume(TokenKind::Gt);
         }
     }
 
@@ -234,10 +231,16 @@ impl<'a> Parser<'a> {
             return Vec::new();
         }
 
+        let impl_generics = self.parse_generic_params().unwrap_or_default();
+
         let struct_name = match self.read_ident() {
             Some(name) => name,
             None => return Vec::new(),
         };
+
+        if self.stream.is(TokenKind::Lt) {
+            self.consume_generics_usage();
+        }
 
         if !self.consume_safely(TokenKind::OBrace).is_some() {
             return Vec::new();
@@ -265,6 +268,12 @@ impl<'a> Parser<'a> {
                     let new_name = format!("{}__{}", struct_name, old_name);
                     func.name = new_name;
 
+                    if !impl_generics.is_empty() {
+                        let mut combined_generics = impl_generics.clone();
+                        combined_generics.extend(func.generics);
+                        func.generics = combined_generics;
+                    }
+
                     methods.push(func);
                 }
             } else {
@@ -279,15 +288,29 @@ impl<'a> Parser<'a> {
         }
 
         self.consume_safely(TokenKind::CBrace);
-
         methods
+    }
+
+    pub fn parse_use(&mut self) -> Option<Stmt> {
+        self.consume_safely(TokenKind::Use)?;
+
+        let mut path = Vec::new();
+        path.push(self.read_ident()?);
+
+        while self.stream.is(TokenKind::ColonColon) {
+            self.advance();
+            path.push(self.read_ident()?);
+        }
+
+        self.consume_safely(TokenKind::Semi)?;
+        Some(Stmt::Use(path))
     }
 
     fn parse_mod_path(&mut self) -> Option<Vec<String>> {
         let mut path = Vec::new();
         path.push(self.read_ident()?);
 
-        while self.stream.is(TokenKind::Dot) {
+        while self.stream.is(TokenKind::ColonColon) {
             self.advance();
             path.push(self.read_ident()?);
         }
@@ -297,63 +320,57 @@ impl<'a> Parser<'a> {
         self.consume_safely(TokenKind::Mod)?;
 
         let path_segments = self.parse_mod_path()?;
-
-        let final_module_name = if self.stream.is(TokenKind::As) {
-            self.advance();
-            self.read_ident()?
-        } else {
-            path_segments.last().cloned().unwrap()
-        };
+        let mod_name = path_segments.last().cloned().unwrap();
 
         if self.stream.is(TokenKind::OBrace) {
-            if path_segments.len() > 1 {
-                self.emit_error_at_current(ParseErrorKind::Message(
-                    "Inline modules cannot have paths (use simple identifier)".to_string(),
-                ));
-            }
-
             self.advance();
             let program = self.parse_definitions(Some(TokenKind::CBrace));
             self.consume_safely(TokenKind::CBrace)?;
-            return Some((final_module_name, program));
-        } else if self.stream.is(TokenKind::Semi) {
-            self.consume_safely(TokenKind::Semi)?;
-
-            let mut relative_path = PathBuf::new();
-            for seg in &path_segments {
-                relative_path.push(seg);
-            }
-
-            let direct_file_path = self.root_dir.join(&relative_path).with_extension("a");
-
-            let dir_path = self.root_dir.join(&relative_path);
-
-            if direct_file_path.exists() && direct_file_path.is_file() {
-                return self.load_single_file_module(&final_module_name, &direct_file_path);
-            }
-
-            if dir_path.exists() && dir_path.is_dir() {
-                let mod_file_path = dir_path.join("mod.a");
-
-                if mod_file_path.exists() {
-                    return self.load_single_file_module(&final_module_name, &mod_file_path);
-                } else {
-                    return self.load_directory_modules(&final_module_name, &dir_path);
-                }
-            }
-
-            self.emit_error_at_current(ParseErrorKind::Message(format!(
-                "Could not resolve module '{}'. Looked for file at {:?} or directory at {:?}",
-                final_module_name, direct_file_path, dir_path
-            )));
-            return None;
-        } else {
-            self.emit_error_at_current(ParseErrorKind::UnexpectedToken {
-                expected: TokenKind::OBrace,
-                found: self.stream.current().kind,
-            });
-            None
+            return Some((mod_name, program));
         }
+
+        self.consume_safely(TokenKind::Semi)?;
+
+        let (file_path, is_dir) = self.resolve_module_path(&path_segments)?;
+
+        if self.loaded_paths.contains(&file_path) {
+            self.emit_error_at_current(ParseErrorKind::Message(format!(
+                   "Module '{}' is already defined via 'mod'. To use it here, use 'use crate::path::to::{}';",
+                   mod_name, mod_name
+               )));
+            return None;
+        }
+
+        self.loaded_paths.insert(file_path.clone());
+
+        if is_dir {
+            self.load_directory_modules(&mod_name, &file_path)
+        } else {
+            self.load_single_file_module(&mod_name, &file_path)
+        }
+    }
+
+    fn resolve_module_path(&mut self, path_segments: &[String]) -> Option<(PathBuf, bool)> {
+        let mut relative_path = PathBuf::new();
+        for seg in path_segments {
+            relative_path.push(seg);
+        }
+
+        let direct_file = self.root_dir.join(&relative_path).with_extension("a");
+        if direct_file.exists() {
+            return Some((direct_file, false));
+        }
+
+        let dir_path = self.root_dir.join(&relative_path);
+        if dir_path.exists() && dir_path.is_dir() {
+            return Some((dir_path, true));
+        }
+
+        self.emit_error_at_current(ParseErrorKind::Message(format!(
+            "Module not found: {:?}",
+            relative_path
+        )));
+        None
     }
 
     fn load_single_file_module(
@@ -396,6 +413,7 @@ impl<'a> Parser<'a> {
             modules: Vec::new(),
             statics: Vec::new(),
             structs: Vec::new(),
+            uses: Vec::new(),
         };
         match fs::read_dir(dir_path) {
             Ok(entries) => {

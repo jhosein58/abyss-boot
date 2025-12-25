@@ -1,0 +1,13 @@
+fn memset(s: &pass, c: i64, n: i64): &pass;
+fn memcpy(dest: &pass, src: &pass, n: i64): &pass;
+fn malloc(s: i64): &pass;
+fn realloc(ptr: &pass, s: i64): &pass;
+fn free(ptr: &pass);
+fn exit(status: i64);
+
+fn print(s: &u8, v: i64);
+
+
+mod rand;
+mod arr;
+mod string;

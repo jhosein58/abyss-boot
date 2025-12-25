@@ -74,8 +74,9 @@ pub enum LirExpr {
 pub enum LirLiteral {
     Int(i64),
     Float(f64),
+    Byte(u8),
     Bool(bool),
-    Str(String),
+    Array(Vec<LirLiteral>),
     Null,
 }
 

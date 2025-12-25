@@ -2,37 +2,39 @@ struct Rng {
     _state: i64
 }
 
-impl Rng {
-    fn next_i64(self: &Rng): i64 {
-        let x: i64 = self._state
-
-        x = x ^ (x << 13)
-        x = x ^ (x >> 7)
-        x = x ^ (x << 17)
-
-        self._state = x
-        ret x
-    }
-
-    fn range(self: &Rng, min: i64, max: i64): i64 {
-        let raw: i64 = self.next_i64()
-
-        if raw < 0 {
-            raw = 0 - raw
-        }
-
-        let len: i64 = max - min
-        if len == 0 { ret min }
-
-        ret min + (raw % len)
-    }
-}
-
 fn seed(s: i64): Rng {
     if s == 0 {
-        ret Rng { _state: 1 }
+        ret struct Rng { _state: 1 }
     }
-    ret Rng { _state: s }
+    ret struct Rng { _state: s }
 }
+
+
+impl Rng {
+    fn next_i64(self: &Rng): i64 {
+        let x: i64 = self._state;
+
+        x = x ^ (x << 13);
+        x = x ^ (x >> 7);
+        x = x ^ (x << 17);
+
+        self._state = x;
+        ret x;
+    }
+
+    -- fn range(self: &Rng, min: i64, max: i64): i64 {
+    --     let raw: i64 = self.next_i64();
+
+    --     if raw < 0 {
+    --         raw = 0 - raw;
+    --     }
+
+    --     let len: i64 = max - min;
+    --     if len == 0 { ret min }
+
+    --     ret min + (raw % len);
+    -- }
+}
+
 
 
