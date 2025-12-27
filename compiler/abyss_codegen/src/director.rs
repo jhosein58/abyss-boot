@@ -1,7 +1,26 @@
-use abyss_analyzer::lir::{LirExpr, LirFunctionDef, LirLiteral, LirProgram, LirStmt, LirType};
+use std::collections::{HashMap, HashSet};
+
+use abyss_analyzer::lir::{
+    LirExpr, LirFunctionDef, LirLiteral, LirProgram, LirStmt, LirStructDef, LirType, LirUnionDef,
+};
 use abyss_parser::ast::UnaryOp;
 
 use crate::target::Target;
+
+#[derive(Clone)]
+enum Definition<'a> {
+    Struct(&'a LirStructDef),
+    Union(&'a LirUnionDef),
+}
+
+impl<'a> Definition<'a> {
+    fn name(&self) -> &str {
+        match self {
+            Definition::Struct(s) => &s.name,
+            Definition::Union(u) => &u.name,
+        }
+    }
+}
 
 pub struct Director<'a, T: Target> {
     target: &'a mut T,
@@ -30,34 +49,43 @@ impl<'a, T: Target> Director<'a, T> {
     pub fn process_program(&mut self, program: &LirProgram) {
         self.target.start_program();
 
-        for st in &program.structs {
-            self.target.define_struct(&st.name, &st.fields);
+        let mut all_defs = Vec::new();
+
+        for s in &program.structs {
+            all_defs.push(Definition::Struct(s));
+        }
+        for u in &program.unions {
+            all_defs.push(Definition::Union(u));
+        }
+        for s in &program.union_struct_defs {
+            all_defs.push(Definition::Struct(s));
         }
 
-        for union in &program.unions {
-            self.target.define_union(&union.name, &union.variants);
-        }
+        let sorted_defs = self.sort_definitions_topologically(all_defs);
 
-        for union_struct in &program.union_struct_defs {
-            self.target
-                .define_struct(&union_struct.name, &union_struct.fields);
+        for def in sorted_defs {
+            match def {
+                Definition::Struct(st) => {
+                    self.target.define_struct(&st.name, &st.fields);
+                }
+                Definition::Union(u) => {
+                    self.target.define_union(&u.name, &u.variants);
+                }
+            }
         }
 
         for glob in &program.globals {
             self.target.define_global_start(&glob.name, &glob.ty, false);
-
             if let Some(init_expr) = &glob.init_value {
                 self.target.define_global_init_start();
                 self.process_expr(init_expr);
             }
-
             self.target.define_global_end();
         }
 
         for func in &program.functions {
             let ret_ty = &func.return_type;
             let params = self.get_func_params(func);
-
             if func.is_extern {
                 self.target
                     .declare_extern_function(&func.name, &params, ret_ty, func.is_variadic);
@@ -74,6 +102,92 @@ impl<'a, T: Target> Director<'a, T> {
         }
 
         self.target.end_program();
+    }
+
+    fn sort_definitions_topologically<'b>(&self, defs: Vec<Definition<'b>>) -> Vec<Definition<'b>> {
+        let mut visited = HashSet::new();
+        let mut temp_visited = HashSet::new();
+        let mut result = Vec::new();
+
+        let mut def_map: HashMap<String, Definition<'b>> = HashMap::new();
+        for def in &defs {
+            def_map.insert(def.name().to_string(), def.clone());
+        }
+
+        fn visit<'b>(
+            name: &str,
+            def_map: &HashMap<String, Definition<'b>>,
+            visited: &mut HashSet<String>,
+            temp_visited: &mut HashSet<String>,
+            result: &mut Vec<Definition<'b>>,
+        ) {
+            if visited.contains(name) {
+                return;
+            }
+            if temp_visited.contains(name) {
+                eprintln!("Warning: Circular dependency detected for {}", name);
+                return;
+            }
+
+            temp_visited.insert(name.to_string());
+
+            if let Some(def) = def_map.get(name) {
+                let dependencies = match def {
+                    Definition::Struct(s) => get_struct_dependencies(s),
+                    Definition::Union(u) => get_union_dependencies(u),
+                };
+
+                for dep_name in dependencies {
+                    if def_map.contains_key(&dep_name) {
+                        visit(&dep_name, def_map, visited, temp_visited, result);
+                    }
+                }
+
+                result.push(def.clone());
+            }
+
+            temp_visited.remove(name);
+            visited.insert(name.to_string());
+        }
+
+        fn get_struct_dependencies(s: &LirStructDef) -> Vec<String> {
+            let mut deps = Vec::new();
+            for (_, ty) in &s.fields {
+                extract_type_name(ty, &mut deps);
+            }
+            deps
+        }
+
+        fn get_union_dependencies(u: &LirUnionDef) -> Vec<String> {
+            let mut deps = Vec::new();
+            for (_, ty) in &u.variants {
+                extract_type_name(ty, &mut deps);
+            }
+            deps
+        }
+
+        fn extract_type_name(ty: &LirType, deps: &mut Vec<String>) {
+            match ty {
+                LirType::Struct(n) => {
+                    deps.push(n.clone());
+                }
+                _ => {}
+            }
+        }
+
+        for def in &defs {
+            if !visited.contains(def.name()) {
+                visit(
+                    def.name(),
+                    &def_map,
+                    &mut visited,
+                    &mut temp_visited,
+                    &mut result,
+                );
+            }
+        }
+
+        result
     }
 
     fn get_func_params(&self, func: &LirFunctionDef) -> Vec<(String, LirType)> {

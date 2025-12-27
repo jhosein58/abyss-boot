@@ -227,17 +227,20 @@ impl TypeChecker {
         for mut s in program.structs {
             if !s.generics.is_empty() {
                 self.resolve_generics_in_struct(&mut s);
-
                 self.generic_struct_templates.insert(s.name.clone(), s);
             } else {
                 let empty_map = HashMap::new();
                 for (_, field_ty) in &mut s.fields {
                     self.substitute_type(field_ty, &empty_map);
+
+                    if let Type::Union(variants) = field_ty {
+                        let struct_name = self.get_or_create_union_struct(variants);
+                        *field_ty = Type::Struct(vec![struct_name], vec![]);
+                    }
                 }
                 self.concrete_structs.push(s);
             }
         }
-
         while let Some(mut func) = self.pending_funcs.pop_front() {
             self.check_function(&mut func);
             self.concrete_funcs.push(func);
@@ -729,6 +732,20 @@ impl TypeChecker {
             Expr::Cast(inner, target_ty) => {
                 let (new_inner, inner_ty) = self.infer_expr(*inner);
 
+                if let Type::Union(variants) = &target_ty {
+                    let is_variant = variants
+                        .iter()
+                        .any(|v| self.are_types_compatible(v, &inner_ty));
+
+                    if is_variant {
+                        let struct_name = self.get_or_create_union_struct(variants);
+
+                        let (wrapped_expr, wrapped_ty) =
+                            self.wrap_expr_for_union(new_inner, inner_ty, variants, struct_name);
+                        return (wrapped_expr, wrapped_ty);
+                    }
+                }
+
                 if let Type::Union(variants) = &inner_ty {
                     if variants.contains(&target_ty) {
                         let data_access = Expr::Member(Box::new(new_inner), "data".to_string());
@@ -798,36 +815,76 @@ impl TypeChecker {
             }
 
             Expr::StructInit(path, fields, generics) => {
-                let mut new_fields = Vec::new();
-                let mut field_types = Vec::new();
+                let mut resolved_fields = Vec::new();
                 for (name, val) in fields {
                     let (new_val, ty) = self.infer_expr(val);
-                    new_fields.push((name, new_val));
-                    field_types.push(ty);
+                    resolved_fields.push((name, new_val, ty));
                 }
 
                 let struct_name = path.join("__");
+                let final_struct_name;
 
                 if self.generic_struct_templates.contains_key(&struct_name) {
                     let final_generics: Vec<Type>;
                     if !generics.is_empty() {
                         final_generics = generics;
                     } else {
-                        panic!("Implicit struct generics not implemented fully yet");
+                        panic!(
+                            "Implicit struct generics logic needed here or explicit generics required"
+                        );
                     }
-
-                    let mangled_name = self.monomorphize_struct(&struct_name, final_generics);
-
-                    (
-                        Expr::StructInit(vec![mangled_name.clone()], new_fields, vec![]),
-                        Type::Struct(vec![mangled_name], vec![]),
-                    )
+                    final_struct_name = self.monomorphize_struct(&struct_name, final_generics);
                 } else {
-                    (
-                        Expr::StructInit(path, new_fields, generics),
-                        Type::Struct(vec![struct_name], vec![]),
-                    )
+                    final_struct_name = struct_name;
                 }
+
+                let target_def = self
+                    .concrete_structs
+                    .iter()
+                    .find(|s| s.name == final_struct_name)
+                    .cloned();
+
+                let mut final_fields = Vec::new();
+
+                if let Some(def) = target_def {
+                    for (f_name, mut f_expr, f_ty) in resolved_fields {
+                        if let Some((_, expected_ty)) =
+                            def.fields.iter().find(|(n, _)| n == &f_name)
+                        {
+                            if let Type::Struct(names, _) = expected_ty {
+                                if let Some(inner_name) = names.first() {
+                                    if inner_name.starts_with("__Union_")
+                                        && !inner_name.contains("__UnionInner_")
+                                    {
+                                        if &f_ty != expected_ty {
+                                            if let Some(variants) =
+                                                self.variant_cache.get(inner_name).cloned()
+                                            {
+                                                let (wrapped, _) = self.wrap_expr_for_union(
+                                                    f_expr,
+                                                    f_ty.clone(),
+                                                    &variants,
+                                                    inner_name.clone(),
+                                                );
+                                                f_expr = wrapped;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        final_fields.push((f_name, f_expr));
+                    }
+                } else {
+                    for (n, e, _) in resolved_fields {
+                        final_fields.push((n, e));
+                    }
+                }
+
+                (
+                    Expr::StructInit(vec![final_struct_name.clone()], final_fields, vec![]),
+                    Type::Struct(vec![final_struct_name], vec![]),
+                )
             }
 
             Expr::Member(inner, field_name) => {

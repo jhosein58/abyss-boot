@@ -110,6 +110,34 @@ pub enum LirType {
     Union(Vec<LirType>),
 }
 
+impl LirType {
+    pub fn get_name(&self) -> String {
+        match self {
+            LirType::U8 => "u8".to_string(),
+            LirType::U16 => "u16".to_string(),
+            LirType::U32 => "u32".to_string(),
+            LirType::U64 => "u64".to_string(),
+            LirType::Usize => "usize".to_string(),
+            LirType::I8 => "i8".to_string(),
+            LirType::I16 => "i16".to_string(),
+            LirType::I32 => "i32".to_string(),
+            LirType::I64 => "i64".to_string(),
+            LirType::Isize => "isize".to_string(),
+            LirType::F32 => "f32".to_string(),
+            LirType::F64 => "f64".to_string(),
+            LirType::Char => "char".to_string(),
+            LirType::Bool => "bool".to_string(),
+            LirType::Void => "void".to_string(),
+            LirType::Pointer(ty) => format!("ptr_{}", ty.get_name()),
+            LirType::Const(ty) => format!("const_{}", ty.get_name()),
+            LirType::Array(ty, size) => format!("Arr_{}_{}", ty.get_name(), size),
+            LirType::Struct(name) => format!("struct_{}", name),
+
+            _ => panic!("Type has no Name"),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct LirStructDef {
     pub name: String,

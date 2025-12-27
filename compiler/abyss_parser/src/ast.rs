@@ -1,5 +1,3 @@
-use std::fmt::format;
-
 pub type Path = Vec<String>;
 
 #[derive(Debug, Clone)]

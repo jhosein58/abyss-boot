@@ -1,15 +1,25 @@
 
 mod stdlib::pre;
-use pre::string::Str;
-use pre::arr::Arr;
+-- use pre::string::Str;
+-- use pre::arr::Arr;
+
+
+
+
+struct Test {
+   v: i32 | Alireza
+}
+
+
+struct Alireza { }
+
 
 
 
 
 fn app_main {
 
-   let arr = Arr.new::<i32 | Str>();
-   arr.add(Str.from("hello world") as i32 | Str)
+
 }
 
 

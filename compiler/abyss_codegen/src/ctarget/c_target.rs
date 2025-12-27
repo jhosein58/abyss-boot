@@ -73,6 +73,16 @@ impl CTarget {
                     format!("struct {}", name)
                 }
             }
+            LirType::Union(variants) => {
+                let mut variant_names: Vec<String> =
+                    variants.iter().map(|v| v.get_name()).collect();
+
+                variant_names.sort();
+
+                let id = variant_names.join("_");
+                format!("struct __Union_{}", id)
+            }
+
             LirType::FunctionPtr(args, ret) => {
                 let args_str = args
                     .iter()
@@ -81,8 +91,6 @@ impl CTarget {
                     .join(", ");
                 format!("{} (*)({})", self.type_to_c(ret), args_str)
             }
-
-            _ => format!("/* Unknown type {:?} */ void", ty),
         }
     }
 
