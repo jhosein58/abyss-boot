@@ -14,6 +14,7 @@ fn atof(s: const &char): f64;
 fn print(s: &u8, v: i64);
 
 
+mod core;
 mod mem;
 mod rand;
 mod arr;

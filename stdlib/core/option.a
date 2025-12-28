@@ -1,0 +1,32 @@
+pub struct None { }
+
+pub struct Option<T> {
+    value: T | None
+}
+
+impl<T> Option<T> {
+   pub fn new(v: T): Option<T> {
+      ret struct Option::<T> {
+            value: v as T | None,
+      }
+   }
+
+   pub fn none: Option<T> {
+      ret struct Option::<T> {
+            value: struct None { } as T | None,
+      }
+   }
+
+
+   pub fn is_none(self: &Option<T>): bool {
+      if self.value is None {
+         ret true
+      }
+
+      false
+   }
+
+   pub fn take(self: &Option<T>): T {
+      ret self.value as T
+   }
+}

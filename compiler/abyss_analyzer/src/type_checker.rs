@@ -257,13 +257,25 @@ impl TypeChecker {
 
             self.register_var(static_def.name.clone(), static_def.ty.clone());
 
-            if let expr = &mut static_def.value {
-                let (new_expr, _expr_ty) = self.infer_expr(expr.clone());
-                *expr = new_expr;
-            }
+            let (new_expr, _expr_ty) = self.infer_expr(static_def.value.clone());
+            static_def.value = new_expr;
         }
 
         while let Some(mut func) = self.pending_funcs.pop_front() {
+            let empty_map: HashMap<String, Type> = HashMap::new();
+
+            for (_, param_ty) in &mut func.params {
+                self.substitute_type(param_ty, &empty_map);
+            }
+
+            self.substitute_type(&mut func.return_type, &empty_map);
+
+            if let FunctionBody::UserDefined(stmts) = &mut func.body {
+                for stmt in stmts {
+                    self.substitute_stmt(stmt, &empty_map);
+                }
+            }
+
             self.check_function(&mut func);
             self.concrete_funcs.push(func);
         }

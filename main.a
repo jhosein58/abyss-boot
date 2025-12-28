@@ -1,28 +1,22 @@
 
 mod stdlib::pre;
-use pre::arr::Arr;
+use pre::core::option::Option;
 
-
-struct None { }
-
-struct Option<T> {
-   v: T | None
-}
 
 
 fn app_main {
 
-   let a = struct Option::<i64> { v: 399 }
+   let a = Option.new(200)
 
+   if a.is_none() {
 
-   if a.v is i64 {
-      printf("%d\n", a.v as i64)
-   }
-
-   if a.v is None {
-      printf("None\n")
+      printf("its None\n");
+   } else {
+   
+      printf("its %d\n", a.take());
    }
 }
+
 
 
 
