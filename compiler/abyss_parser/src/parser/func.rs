@@ -69,7 +69,7 @@ impl<'a> Parser<'a> {
     pub fn parse_function(&mut self, is_pub: bool) -> Option<FunctionDef> {
         self.consume_safely(TokenKind::Fn)?;
 
-        let name = self.read_ident()?;
+        let mut name = self.read_ident()?;
 
         let generics = self.parse_generic_params()?;
 
@@ -77,16 +77,38 @@ impl<'a> Parser<'a> {
 
         let return_type = self.parse_return_type();
 
-        let body = if self.stream.is(TokenKind::Semi) {
+        let mut original_external_name = None;
+
+        if self.stream.is(TokenKind::As) {
             self.advance();
-            FunctionBody::Extern
-        } else {
-            if let Some(stmts) = self.parse_block() {
+            let alias = self.read_ident()?;
+
+            original_external_name = Some(name.clone());
+
+            name = alias;
+        }
+
+        let body = if self.stream.is(TokenKind::OBrace) {
+            if let Some(mut stmts) = self.parse_block() {
+                if let Type::Void = return_type {
+                } else {
+                    if let Some(last) = stmts.last_mut() {
+                        if let Stmt::Expr(expr) = last {
+                            *last = Stmt::Ret(expr.clone());
+                        }
+                    }
+                }
                 FunctionBody::UserDefined(stmts)
             } else {
                 self.synchronize();
                 return None;
             }
+        } else {
+            if self.stream.is(TokenKind::Semi) {
+                self.advance();
+            }
+
+            FunctionBody::Extern
         };
 
         Some(FunctionDef {
@@ -97,8 +119,10 @@ impl<'a> Parser<'a> {
             return_type,
             body,
             is_variadic,
+            external_name: original_external_name,
         })
     }
+
     pub fn parse_struct_def(&mut self, is_pub: bool) -> Option<StructDef> {
         self.consume_safely(TokenKind::Struct)?;
 

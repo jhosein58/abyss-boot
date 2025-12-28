@@ -5,7 +5,6 @@ pub struct Arr<T> {
 }
 
 
-
 impl<T> Arr<T> {
 
     fn new: Arr<T> {
@@ -17,7 +16,7 @@ impl<T> Arr<T> {
     }
     
     fn with_capacity(initial_cap: i64): Arr<T> {
-        let list = new::<T>()
+        let list = Arr.new::<T>()
         list.reserve(initial_cap)
         ret list
     }
@@ -47,8 +46,7 @@ impl<T> Arr<T> {
                 }
             }
             
-            let new_size_bytes: i64 = new_cap * size(T);
-            let new_ptr: &T = realloc(self.ptr, new_size_bytes) as &T;
+           let new_ptr = pre::mem::realloc::<T>(self.ptr, new_cap);
             
             self.ptr = new_ptr;
             self.cap = new_cap;
@@ -125,7 +123,7 @@ impl<T> Arr<T> {
 
     fn destroy(self: &Arr<T>) {
         if self.ptr != 0 {
-            free(self.ptr)
+            pre::mem::free(self.ptr)
         }
         self.ptr = 0;
         self.len = 0;

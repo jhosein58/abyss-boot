@@ -74,6 +74,23 @@ impl<'a, T: Target> Director<'a, T> {
             }
         }
 
+        for func in &program.functions {
+            let ret_ty = &func.return_type;
+            let params = self.get_func_params(func);
+            if func.is_extern {
+                self.target.declare_extern_function(
+                    &func.name,
+                    func.external_name.clone(),
+                    &params,
+                    ret_ty,
+                    func.is_variadic,
+                );
+            } else {
+                self.target
+                    .declare_function_proto(&func.name, &params, ret_ty, func.is_variadic);
+            }
+        }
+
         for glob in &program.globals {
             self.target.define_global_start(&glob.name, &glob.ty, false);
             if let Some(init_expr) = &glob.init_value {
@@ -81,18 +98,6 @@ impl<'a, T: Target> Director<'a, T> {
                 self.process_expr(init_expr);
             }
             self.target.define_global_end();
-        }
-
-        for func in &program.functions {
-            let ret_ty = &func.return_type;
-            let params = self.get_func_params(func);
-            if func.is_extern {
-                self.target
-                    .declare_extern_function(&func.name, &params, ret_ty, func.is_variadic);
-            } else {
-                self.target
-                    .declare_function_proto(&func.name, &params, ret_ty, func.is_variadic);
-            }
         }
 
         for func in &program.functions {

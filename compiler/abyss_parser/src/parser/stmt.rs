@@ -98,6 +98,10 @@ impl<'a> Parser<'a> {
 
     fn parse_ret_stmt(&mut self) -> Option<Stmt> {
         self.consume(Tk::Ret)?;
+        if self.is(Tk::Semi) || self.is(Tk::Newline) {
+            self.advance();
+            return Some(Stmt::Ret(Expr::Lit(Lit::Null)));
+        }
         let expr = self.parse_expr()?;
         Some(Stmt::Ret(expr))
     }

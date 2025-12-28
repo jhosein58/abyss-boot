@@ -223,6 +223,7 @@ impl Ir {
             body,
             is_extern,
             is_variadic: func.is_variadic,
+            external_name: func.external_name.clone(),
         }
     }
 

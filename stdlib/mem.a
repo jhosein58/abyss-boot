@@ -1,3 +1,12 @@
 pub fn alloc<T>(n: i64): &T {
-    ret malloc(size(T) * n) as &T
+    c_malloc(size(T) * n) as &T
+}
+
+
+pub fn realloc<T>(ptr: &pass, s: i64): &T {
+    c_realloc(ptr, size(T) * s) as &T
+}
+
+pub fn free(ptr: &pass) {
+    c_free(ptr)
 }

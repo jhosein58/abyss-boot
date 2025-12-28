@@ -1,8 +1,9 @@
 fn memset(s: &pass, c: i64, n: i64): &pass;
 fn memcpy(dest: &pass, src: &pass, n: i64): &pass;
-fn malloc(s: i64): &pass;
-fn realloc(ptr: &pass, s: i64): &pass;
-fn free(ptr: &pass);
+
+fn malloc(s: i64): &pass                as c_malloc;
+fn realloc(ptr: &pass, s: i64): &pass   as c_realloc;
+fn free(ptr: &pass)                     as c_free;
 fn exit(status: i64);
 fn printf(s: const &char, ..): i32;
 fn getchar(): i32;

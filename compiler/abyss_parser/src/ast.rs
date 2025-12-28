@@ -152,6 +152,7 @@ pub struct FunctionDef {
     pub return_type: Type,
     pub body: FunctionBody,
     pub is_variadic: bool,
+    pub external_name: Option<String>,
 }
 
 #[derive(Debug, Clone)]

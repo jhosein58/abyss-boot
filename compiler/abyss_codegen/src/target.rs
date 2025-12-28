@@ -28,6 +28,7 @@ pub trait Target {
     fn declare_extern_function(
         &mut self,
         name: &str,
+        external_name: Option<String>,
         params: &[(String, LirType)],
         return_type: &LirType,
         is_variadic: bool,

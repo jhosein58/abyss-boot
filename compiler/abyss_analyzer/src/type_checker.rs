@@ -213,17 +213,7 @@ impl TypeChecker {
     fn is_float(&self, t: &Type) -> bool {
         matches!(t, Type::F32 | Type::F64)
     }
-
-    pub fn check(mut self, program: FlatProgram) -> FlatProgram {
-        for mut func in program.functions {
-            if !func.generics.is_empty() {
-                self.resolve_generics_in_func(&mut func);
-                self.generic_func_templates.insert(func.name.clone(), func);
-            } else {
-                self.pending_funcs.push_back(func);
-            }
-        }
-
+    pub fn check(mut self, mut program: FlatProgram) -> FlatProgram {
         for mut s in program.structs {
             if !s.generics.is_empty() {
                 self.resolve_generics_in_struct(&mut s);
@@ -241,6 +231,38 @@ impl TypeChecker {
                 self.concrete_structs.push(s);
             }
         }
+
+        for mut func in program.functions {
+            if !func.generics.is_empty() {
+                self.resolve_generics_in_func(&mut func);
+                self.generic_func_templates.insert(func.name.clone(), func);
+            } else {
+                self.pending_funcs.push_back(func);
+            }
+        }
+
+        for static_def in &mut program.statics {
+            if let Type::Struct(path, generics) = &mut static_def.ty {
+                if !generics.is_empty() {
+                    let struct_name = path.join("__");
+
+                    if self.generic_struct_templates.contains_key(&struct_name) {
+                        let concrete_name =
+                            self.monomorphize_struct(&struct_name, generics.clone());
+
+                        static_def.ty = Type::Struct(vec![concrete_name], vec![]);
+                    }
+                }
+            }
+
+            self.register_var(static_def.name.clone(), static_def.ty.clone());
+
+            if let expr = &mut static_def.value {
+                let (new_expr, _expr_ty) = self.infer_expr(expr.clone());
+                *expr = new_expr;
+            }
+        }
+
         while let Some(mut func) = self.pending_funcs.pop_front() {
             self.check_function(&mut func);
             self.concrete_funcs.push(func);
@@ -329,6 +351,12 @@ impl TypeChecker {
                     self.convert_struct_to_generic(arg, generic_names);
                 }
                 self.convert_struct_to_generic(ret, generic_names);
+            }
+
+            Type::Union(variants) => {
+                for variant in variants {
+                    self.convert_struct_to_generic(variant, generic_names);
+                }
             }
             _ => {}
         }
@@ -526,7 +554,31 @@ impl TypeChecker {
 
                     match ty_opt {
                         Some(explicit_ty) => {
-                            if !self.are_types_compatible(explicit_ty, &expr_ty) {
+                            let mut types_match = self.are_types_compatible(explicit_ty, &expr_ty);
+
+                            if !types_match {
+                                if let Type::Struct(explicit_path, explicit_generics) = explicit_ty
+                                {
+                                    if let Type::Struct(expr_path, _) = &expr_ty {
+                                        if let Some(concrete_name) = expr_path.last() {
+                                            if let Some((base_name, stored_generics)) =
+                                                self.reverse_struct_map.get(concrete_name)
+                                            {
+                                                let explicit_name_str = explicit_path.join("__");
+
+                                                if &explicit_name_str == base_name
+                                                    && explicit_generics == stored_generics
+                                                {
+                                                    *explicit_ty = expr_ty.clone();
+                                                    types_match = true;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            if !types_match {
                                 let is_int_conversion =
                                     self.is_integer(explicit_ty) && self.is_integer(&expr_ty);
                                 let is_float_conversion =
@@ -1267,6 +1319,11 @@ impl TypeChecker {
 
         for (_, field_ty) in &mut new_struct.fields {
             self.substitute_type_helper(field_ty, &map);
+
+            if let Type::Union(variants) = field_ty {
+                let union_struct_name = self.get_or_create_union_struct(variants);
+                *field_ty = Type::Struct(vec![union_struct_name], vec![]);
+            }
         }
 
         self.concrete_structs.push(new_struct);
@@ -1309,6 +1366,12 @@ impl TypeChecker {
                         *path = vec![mangled_name];
                         generics.clear();
                     }
+                }
+            }
+
+            Type::Union(variants) => {
+                for variant in variants {
+                    self.substitute_type(variant, map);
                 }
             }
             _ => {}

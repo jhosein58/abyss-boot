@@ -165,6 +165,7 @@ pub struct LirFunctionDef {
     pub body: Vec<LirStmt>,
     pub is_extern: bool,
     pub is_variadic: bool,
+    pub external_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]

@@ -1,25 +1,27 @@
 
 mod stdlib::pre;
--- use pre::string::Str;
--- use pre::arr::Arr;
+use pre::arr::Arr;
 
 
+struct None { }
 
-
-struct Test {
-   v: i32 | Alireza
+struct Option<T> {
+   v: T | None
 }
-
-
-struct Alireza { }
-
-
-
 
 
 fn app_main {
 
+   let a = struct Option::<i64> { v: 399 }
 
+
+   if a.v is i64 {
+      printf("%d\n", a.v as i64)
+   }
+
+   if a.v is None {
+      printf("None\n")
+   }
 }
 
 
