@@ -1,24 +1,21 @@
 
 mod stdlib::pre;
-use pre::core::option::Option;
+use pre::file::File;
+use pre::arr::Arr;
 
 
 
 fn app_main {
 
-   let a = Option.new(200)
 
-   if a.is_none() {
 
-      printf("its None\n");
-   } else {
-   
-      printf("its %d\n", a.take());
-   }
+  let a = File.open("main.a", "r")
+
+  let content = a.read_to_end()
+
+  printf(content.ptr as const &char)
+
+
+
+
 }
-
-
-
-
-
-

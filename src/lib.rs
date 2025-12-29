@@ -5,8 +5,10 @@ use abyss_analyzer::{
 use abyss_codegen::{director::Director, target::Target};
 use abyss_parser::{ast::Program, parser::Parser};
 use include_dir::{Dir, include_dir};
+use libc::FILE;
 use std::{
     ffi::{CString, c_char, c_int, c_void},
+    os::raw::c_long,
     time::Instant,
 };
 use tempfile::TempDir;
@@ -247,18 +249,24 @@ impl<'a, T: Target> Abyss<'a, T> {
             fn printf(format: *const c_char, ...) -> c_int;
             fn memset(s: *mut c_void, c: c_int, n: usize) -> *mut c_void;
             fn memcpy(dest: *mut c_void, src: *const c_void, n: usize) -> *mut c_void;
-
             fn malloc(size: usize) -> *mut c_void;
             fn realloc(ptr: *mut c_void, size: usize) -> *mut c_void;
             fn free(ptr: *mut c_void);
-
             fn exit(status: c_int) -> !;
-
             fn scanf(format: *const std::ffi::c_char, ...) -> std::ffi::c_int;
-
             fn getchar() -> std::ffi::c_int;
             fn atoll(s: *const std::ffi::c_char) -> std::ffi::c_longlong;
             fn atof(s: *const std::ffi::c_char) -> std::ffi::c_double;
+            fn __isoc99_scanf(format: *const std::ffi::c_char, ...) -> std::ffi::c_int;
+            fn fopen(filename: *const c_char, mode: *const c_char) -> *mut FILE;
+            fn fclose(stream: *mut FILE) -> c_int;
+            fn fread(ptr: *mut c_void, size: usize, nmemb: usize, stream: *mut FILE) -> usize;
+            fn fwrite(ptr: *const c_void, size: usize, nmemb: usize, stream: *mut FILE) -> usize;
+            fn fgets(s: *mut c_char, size: c_int, stream: *mut FILE) -> *mut c_char;
+            fn fputs(s: *const c_char, stream: *mut FILE) -> c_int;
+            fn fseek(stream: *mut FILE, offset: c_long, whence: c_int) -> c_int;
+            fn ftell(stream: *mut FILE) -> c_long;
+            fn rewind(stream: *mut FILE);
         }
 
         let add_fn = |name: &str, ptr: *const c_void| {
@@ -276,6 +284,16 @@ impl<'a, T: Target> Abyss<'a, T> {
         add_fn("getchar", getchar as *const std::ffi::c_void);
         add_fn("atoll", atoll as *const std::ffi::c_void);
         add_fn("atof", atof as *const std::ffi::c_void);
+        add_fn("__isoc99_scanf", __isoc99_scanf as *const std::ffi::c_void);
+        add_fn("fopen", fopen as *const c_void);
+        add_fn("fclose", fclose as *const c_void);
+        add_fn("fread", fread as *const c_void);
+        add_fn("fwrite", fwrite as *const c_void);
+        add_fn("fgets", fgets as *const c_void);
+        add_fn("fputs", fputs as *const c_void);
+        add_fn("fseek", fseek as *const c_void);
+        add_fn("ftell", ftell as *const c_void);
+        add_fn("rewind", rewind as *const c_void);
     }
 
     pub fn process(&mut self) {

@@ -1,0 +1,95 @@
+use pre::arr::Arr;
+
+pub struct File {
+    handle: &FILE,
+    is_open: i64
+}
+
+impl File {
+    fn open(path: &u8, mode: &u8): File {
+        let h = fopen(path as const &char, mode as const &char);
+        
+        let open_flag: i64 = 0;
+        if h != 0 {
+            open_flag = 1;
+        }
+
+        ret File {
+            handle: h,
+            is_open: open_flag
+        }
+    }
+
+    -- fn open_read(path: &u8): File {
+    --     ret File.open(path, "rb")
+    -- }
+
+    fn close(self: &File) {
+        if self.is_open {
+            if self.handle != 0 {
+                fclose(self.handle);
+            }
+            self.handle = 0;
+            self.is_open = 0;
+        }
+    }
+
+    fn len(self: &File): i64 {
+        if self.is_open == 0 { ret 0; }
+        
+        fseek(self.handle, 0, 2);
+        let s = ftell(self.handle);
+        fseek(self.handle, 0, 0); 
+        
+        ret s;
+    }
+
+    fn read_to_end(self: &File): Arr<u8> {
+        if self.is_open == 0 {
+            ret Arr.new::<u8>();
+        }
+
+        let s = self.len();
+        
+        let buffer = Arr.with_capacity::<u8>(s);
+        
+        let read_count = fread(buffer.ptr, 1, s, self.handle);
+        
+        buffer.len = read_count;
+
+        ret buffer;
+    }
+
+    fn write_all(self: &File, data: &Arr<u8>): i64 {
+        if self.is_open == 0 { ret 0; }
+        
+        let written = fwrite(data.ptr, 1, data.len, self.handle);
+        ret written;
+    }
+
+    fn write_str(self: &File, text: &u8): i64 {
+        if self.is_open == 0 { ret 0; }
+
+        let len: i64 = 0;
+        let p: &u8 = text;
+        while *p != 0 {
+            len += 1;
+            p = p + 1; 
+        }
+
+        let written = fwrite(text, 1, len, self.handle);
+        ret written;
+    }
+    
+    -- fn read_to_string(path: &u8): Arr<u8> {
+    --     let m = "rb";
+    --     let f = File.open(path, &m);
+    --     -- if f.is_open == 0 {
+    --     --     ret Arr.new::<u8>();
+    --     -- }
+        
+    --     -- let content = f.read_to_end();
+    --     -- f.close();
+    --     -- ret content;
+    -- }
+}

@@ -5,15 +5,15 @@ use crate::{
 use abyss_lexer::token::TokenKind as Tk;
 
 impl<'a> Parser<'a> {
-    pub fn parse_stmt(&mut self, scope: &mut Vec<Stmt>) -> Option<Stmt> {
+    pub fn parse_stmt(&mut self) -> Option<Stmt> {
         let stmt = match self.stream.current().kind {
             Tk::Let => self.parse_let_stmt()?,
             Tk::Fn => self.parse_nested_function()?,
             Tk::Ret => self.parse_ret_stmt()?,
-            Tk::If => self.parse_if_stmt(scope)?,
+            Tk::If => self.parse_if_stmt()?,
 
             Tk::While => self.parse_while_stmt()?,
-            Tk::For => self.parse_for_stmt(scope)?,
+            Tk::For => self.parse_for_stmt()?,
             Tk::Forever => self.parse_forever_stmt()?,
 
             Tk::Out => self.parse_out_stmt()?,
@@ -106,23 +106,38 @@ impl<'a> Parser<'a> {
         Some(Stmt::Ret(expr))
     }
 
-    fn parse_if_stmt(&mut self, scope: &mut Vec<Stmt>) -> Option<Stmt> {
+    fn parse_if_stmt(&mut self) -> Option<Stmt> {
         self.consume(Tk::If)?;
 
         let condition = self.parse_expr()?;
 
-        let then_stmts = self.parse_block()?;
+        let then_stmts;
+        if self.stream.is(Tk::Then) || !self.is(Tk::OBrace) {
+            self.optional(Tk::Then);
+            then_stmts = vec![self.parse_stmt()?];
+        } else {
+            then_stmts = self.parse_block()?;
+        }
+
         let then_branch = Box::new(Stmt::Block(then_stmts));
+
+        self.optional(Tk::Newline);
 
         let else_branch = if self.stream.is(Tk::Else) {
             self.advance();
+            self.optional(Tk::Newline);
 
-            if self.stream.is(Tk::If) {
-                let nested_if = self.parse_stmt(scope)?;
-                Some(Box::new(nested_if))
+            if self.is(Tk::If) || self.is(Tk::OBrace) {
+                if self.stream.is(Tk::If) {
+                    let nested_if = self.parse_stmt()?;
+                    Some(Box::new(nested_if))
+                } else {
+                    let else_stmts = self.parse_block()?;
+                    Some(Box::new(Stmt::Block(else_stmts)))
+                }
             } else {
-                let else_stmts = self.parse_block()?;
-                Some(Box::new(Stmt::Block(else_stmts)))
+                let stmt = self.parse_stmt()?;
+                Some(Box::new(stmt))
             }
         } else {
             None
@@ -149,7 +164,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_for_stmt(&mut self, _: &mut Vec<Stmt>) -> Option<Stmt> {
+    fn parse_for_stmt(&mut self) -> Option<Stmt> {
         self.consume(Tk::For)?;
 
         if self.stream.is(Tk::Ident) && self.stream.is_peek(Tk::In) {

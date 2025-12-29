@@ -8,7 +8,7 @@ pub struct Arr<T> {
 impl<T> Arr<T> {
 
     fn new: Arr<T> {
-        ret struct Arr::<T> {
+        Arr::<T> {
             ptr: 0,
             len: 0,
             cap: 0
@@ -16,9 +16,14 @@ impl<T> Arr<T> {
     }
     
     fn with_capacity(initial_cap: i64): Arr<T> {
-        let list = Arr.new::<T>()
+        let list = Arr::<T> {
+            ptr: 0,
+            len: 0,
+            cap: 0
+        }
+
         list.reserve(initial_cap)
-        ret list
+        list
     }
 
     fn is_empty(self: &Arr<T>): i64 { 

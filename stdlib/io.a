@@ -1,11 +1,22 @@
-fn print_newline {
-    printf("\n");
-}
+pub fn input<T>: T {
+    let a: T
+    
+    if a is i64 {
+        scanf("%lld", &a)
+    }
 
-fn print_f64(value: f64) {
-    printf("%f", value);
-}
+    if a is i32 {
+        scanf("%d", &a)
+    }
+    
+    
+    if a is f32 {
+        scanf("%f", &a)
+    }
 
-fn print_i64(value: i64) {
-    printf("%ld", value);
+    if a is f64 {
+        scanf("%lf", &a)
+    }
+
+    a
 }

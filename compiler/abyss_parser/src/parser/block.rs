@@ -9,7 +9,7 @@ impl<'a> Parser<'a> {
         let mut scope = Vec::new();
 
         while !self.stream.is(TokenKind::CBrace) && !self.stream.is(TokenKind::Eof) {
-            match self.parse_stmt(&mut scope) {
+            match self.parse_stmt() {
                 Some(stmt) => scope.push(stmt),
                 None => {
                     return None;

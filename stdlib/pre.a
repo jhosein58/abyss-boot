@@ -1,6 +1,18 @@
-fn memset(s: &pass, c: i64, n: i64): &pass;
-fn memcpy(dest: &pass, src: &pass, n: i64): &pass;
+struct FILE;
 
+fn fopen(filename: const &char, mode: const &char): &FILE;
+fn fclose(stream: &FILE): i32;
+fn fread(ptr: &pass, s: usize, n: usize, stream: &FILE): usize;
+fn fwrite(ptr: const &pass, s: usize, n: usize, stream: &FILE): usize;
+fn fgets(st: &char, s: i32, stream: &FILE): &char;
+fn fputs(s: const &char, stream: &FILE): i32;
+fn fseek(stream: &FILE, offset: i64, whence: i32): i32;
+fn ftell(stream: &FILE): i64;
+fn rewind(stream: &FILE);
+
+
+fn memset(s: &pass, c: i32, n: usize): &pass;
+fn memcpy(dest: &pass, src: &pass, n: i64): &pass;
 fn malloc(s: i64): &pass                as c_malloc;
 fn realloc(ptr: &pass, s: i64): &pass   as c_realloc;
 fn free(ptr: &pass)                     as c_free;
@@ -16,6 +28,9 @@ fn print(s: &u8, v: i64);
 
 mod core;
 mod mem;
+
+mod file;
+mod io;
 mod rand;
 mod arr;
 mod string;

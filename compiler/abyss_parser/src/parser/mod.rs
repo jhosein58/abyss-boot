@@ -28,6 +28,7 @@ pub struct Parser<'a> {
     unique_id_counter: u32,
     root_dir: PathBuf,
     loaded_paths: HashSet<PathBuf>,
+    structs: HashSet<String>,
 }
 
 impl<'a> Parser<'a> {
@@ -48,6 +49,7 @@ impl<'a> Parser<'a> {
             unique_id_counter: 0,
             root_dir,
             loaded_paths: HashSet::new(),
+            structs: HashSet::new(),
         }
     }
 

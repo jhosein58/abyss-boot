@@ -185,6 +185,11 @@ impl<'a> Parser<'a> {
             TokenKind::Ident => {
                 let path = self.parse_path()?;
 
+                let struct_name = path.join("__");
+                if self.structs.contains(&struct_name) {
+                    return self.parse_struct_init(path);
+                }
+
                 let generics = if self.stream.is(TokenKind::ColonColon) {
                     if self.stream.is_peek(TokenKind::Lt) {
                         self.advance();
@@ -294,25 +299,7 @@ impl<'a> Parser<'a> {
             TokenKind::Struct => {
                 self.advance();
                 let path = self.parse_path()?;
-                let generics = if self.stream.is(TokenKind::ColonColon) {
-                    if self.stream.is_peek(TokenKind::Lt) {
-                        self.advance();
-                        self.parse_generic_args()?
-                    } else {
-                        Vec::new()
-                    }
-                } else {
-                    Vec::new()
-                };
-
-                if self.stream.is(TokenKind::OBrace) {
-                    return self.parse_struct_literal(path, generics);
-                } else {
-                    self.emit_error_at_current(ParseErrorKind::Expected(
-                        "'{' after struct type name".to_string(),
-                    ));
-                    return None;
-                }
+                return self.parse_struct_init(path);
             }
             _ => {
                 self.emit_error_at_current(ParseErrorKind::UnexpectedToken {
@@ -333,6 +320,24 @@ impl<'a> Parser<'a> {
         })
     }
 
+    fn parse_struct_init(&mut self, path: Vec<String>) -> Option<Expr> {
+        let generics = if self.stream.is(TokenKind::ColonColon) {
+            if self.stream.is_peek(TokenKind::Lt) {
+                self.advance();
+                self.parse_generic_args()?
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        };
+
+        if self.stream.is(TokenKind::OBrace) {
+            return self.parse_struct_literal(path, generics);
+        } else {
+            return Some(Expr::StructInit(path, vec![], generics));
+        }
+    }
     fn parse_postfix(&mut self, lhs: Expr) -> Option<Expr> {
         let token_kind = self.stream.current().kind;
 

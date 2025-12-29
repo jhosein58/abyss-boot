@@ -44,6 +44,16 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn read_funct_ident(&mut self) -> String {
+        if self.stream.is(TokenKind::Ident) {
+            let ident = self.stream.current_lit().to_string();
+            self.advance();
+            ident
+        } else {
+            String::new()
+        }
+    }
+
     fn parse_generic_params(&mut self) -> Option<Vec<String>> {
         if self.stream.is(TokenKind::Lt) {
             self.advance();
@@ -69,7 +79,7 @@ impl<'a> Parser<'a> {
     pub fn parse_function(&mut self, is_pub: bool) -> Option<FunctionDef> {
         self.consume_safely(TokenKind::Fn)?;
 
-        let mut name = self.read_ident()?;
+        let mut name = self.read_funct_ident();
 
         let generics = self.parse_generic_params()?;
 
@@ -88,6 +98,8 @@ impl<'a> Parser<'a> {
             name = alias;
         }
 
+        self.optional(TokenKind::Newline);
+
         let body = if self.stream.is(TokenKind::OBrace) {
             if let Some(mut stmts) = self.parse_block() {
                 if let Type::Void = return_type {
@@ -99,6 +111,13 @@ impl<'a> Parser<'a> {
                     }
                 }
                 FunctionBody::UserDefined(stmts)
+            } else {
+                self.synchronize();
+                return None;
+            }
+        } else if self.is(TokenKind::Ret) {
+            if let Some(stmt) = self.parse_stmt() {
+                FunctionBody::UserDefined(vec![stmt])
             } else {
                 self.synchronize();
                 return None;
@@ -127,8 +146,20 @@ impl<'a> Parser<'a> {
         self.consume_safely(TokenKind::Struct)?;
 
         let name = self.read_ident()?;
+        self.structs.insert(name.clone());
 
         let generics = self.parse_generic_params()?;
+
+        if self.is(TokenKind::Semi) || self.is(TokenKind::Newline) {
+            self.advance();
+
+            return Some(StructDef {
+                is_pub,
+                name,
+                generics,
+                fields: vec![],
+            });
+        }
 
         self.consume_safely(TokenKind::OBrace)?;
 

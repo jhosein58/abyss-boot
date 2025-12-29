@@ -49,6 +49,7 @@ pub enum TokenKind {
     Pub,     // pub
     Ret,     // ret
     If,      // if
+    Then,    // then
     Else,    // else
     While,   // while
     For,     // for
@@ -132,6 +133,7 @@ impl TokenKind {
             "pub" => TokenKind::Pub,
             "ret" => TokenKind::Ret,
             "if" => TokenKind::If,
+            "then" => TokenKind::Then,
             "else" => TokenKind::Else,
             "while" => TokenKind::While,
             "for" => TokenKind::For,
@@ -231,6 +233,7 @@ impl Display for TokenKind {
             TokenKind::Pub => write!(f, "'pub'"),
             TokenKind::Ret => write!(f, "'ret'"),
             TokenKind::If => write!(f, "'if'"),
+            TokenKind::Then => write!(f, "'then'"),
             TokenKind::Else => write!(f, "'else'"),
             TokenKind::While => write!(f, "'while'"),
             TokenKind::For => write!(f, "'for'"),

@@ -3,6 +3,16 @@ use std::collections::{HashMap, HashSet};
 use crate::target::Target;
 use abyss_analyzer::lir::{LirLiteral, LirType};
 use abyss_parser::ast::{BinaryOp, UnaryOp};
+
+static STD_C_FUNCS: [&str; 37] = [
+    "memset", "memcpy", "memmove", "memcmp", "printf", "sprintf", "fprintf", "snprintf", "malloc",
+    "free", "realloc", "calloc", "exit", "abort", "strlen", "strcpy", "strncpy", "strcmp", "sin",
+    "cos", "tan", "sqrt", "pow", "abs", "open", "close", "read", "write", "fopen", "fread",
+    "fwrite", "fgets", "fputs", "fclose", "fseek", "ftell", "rewind",
+];
+
+static STD_C_STRUCTS: [&str; 1] = ["pre__FILE"];
+
 pub struct CTarget {
     output: String,
     indent_level: usize,
@@ -57,7 +67,7 @@ impl CTarget {
             LirType::U16 => "unsigned short".to_string(),
             LirType::U32 => "unsigned int".to_string(),
             LirType::U64 => "unsigned long long".to_string(),
-            LirType::Usize => "unsigned long long".to_string(),
+            LirType::Usize => "size_t".to_string(),
             LirType::I8 => "signed char".to_string(),
             LirType::I16 => "short".to_string(),
             LirType::I32 => "int".to_string(),
@@ -76,6 +86,9 @@ impl CTarget {
                 if name.starts_with("__UnionInner_") {
                     format!("union {}", name)
                 } else {
+                    if name == "pre__FILE" {
+                        return format!("FILE");
+                    }
                     format!("struct {}", name)
                 }
             }
@@ -238,24 +251,26 @@ impl Target for CTarget {
     }
 
     fn define_struct(&mut self, name: &str, fields: &[(String, LirType)]) {
-        self.write(&format!("struct {} {{", name));
-        self.push_indent();
-        self.set_newline_pending();
-        for (field_name, field_type) in fields {
-            let decl = match field_type {
-                LirType::Array(inner, size) => {
-                    format!("{} {}[{}]", self.type_to_c(inner), field_name, size)
-                }
-                _ => format!("{} {}", self.type_to_c(field_type), field_name),
-            };
-            self.write(&format!("{};", decl));
+        if !STD_C_STRUCTS.contains(&name) {
+            self.write(&format!("struct {} {{", name));
+            self.push_indent();
+            self.set_newline_pending();
+            for (field_name, field_type) in fields {
+                let decl = match field_type {
+                    LirType::Array(inner, size) => {
+                        format!("{} {}[{}]", self.type_to_c(inner), field_name, size)
+                    }
+                    _ => format!("{} {}", self.type_to_c(field_type), field_name),
+                };
+                self.write(&format!("{};", decl));
+                self.set_newline_pending();
+            }
+            self.pop_indent();
+            self.write("};");
+            self.set_newline_pending();
+            self.write("");
             self.set_newline_pending();
         }
-        self.pop_indent();
-        self.write("};");
-        self.set_newline_pending();
-        self.write("");
-        self.set_newline_pending();
     }
 
     fn define_union(&mut self, name: &str, variants: &[(String, LirType)]) {
@@ -325,6 +340,8 @@ impl Target for CTarget {
     ) {
         let real_c_name = external_name.clone().unwrap_or(name.to_string());
 
+        let is_builtin = STD_C_FUNCS.contains(&real_c_name.as_str());
+
         self.extern_syms.insert(real_c_name.clone());
         if let Some(ref alias) = external_name {
             if alias != name {
@@ -332,11 +349,13 @@ impl Target for CTarget {
             }
         }
 
-        self.write(&format!(
-            "extern {};",
-            self.func_signature(&real_c_name, params, return_type, is_variadic)
-        ));
-        self.set_newline_pending();
+        if !is_builtin {
+            self.write(&format!(
+                "extern {};",
+                self.func_signature(&real_c_name, params, return_type, is_variadic)
+            ));
+            self.set_newline_pending();
+        }
 
         if let Some(real) = external_name {
             if real != name {

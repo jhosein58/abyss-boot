@@ -82,10 +82,10 @@ os.remove("libtcc1.o")
 print("\n>> [3/3] Gathering Vital Headers (No stdlib)...")
 
 local vital_headers = {
-    "stdio.h",
-    "stdarg.h",
-    "stddef.h",
-    "stdbool.h",
+    -- "stdio.h",
+    -- "stdarg.h",
+    -- "stddef.h",
+    -- "stdbool.h",
     -- "float.h"
 }
 
