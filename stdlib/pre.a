@@ -29,8 +29,9 @@ fn print(s: &u8, v: i64);
 mod core;
 mod mem;
 
+mod arr;
+mod string;
+
 mod file;
 mod io;
 mod rand;
-mod arr;
-mod string;

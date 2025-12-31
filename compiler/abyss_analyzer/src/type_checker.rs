@@ -983,7 +983,6 @@ impl TypeChecker {
                     panic!("Accessing member of non-struct type");
                 }
             }
-
             Expr::MethodCall(receiver, method_name, args, generics) => {
                 let static_struct_name = if let Expr::Ident(ref path) = *receiver {
                     let potential_struct_name = path.join("__");
@@ -1012,7 +1011,6 @@ impl TypeChecker {
 
                 if let Some(struct_name) = static_struct_name {
                     let func_mangled_name = format!("{}__{}", struct_name, method_name);
-
                     return self.handle_function_call(
                         Expr::Ident(vec![func_mangled_name]),
                         args,
@@ -1048,43 +1046,61 @@ impl TypeChecker {
                     let mut final_args = Vec::new();
                     let mut final_receiver = base_receiver_expr;
 
-                    let mut should_pass_ref = false;
+                    enum SelfPassingMode {
+                        ByValue,
+                        ByRef,
+                        None,
+                    }
 
-                    let check_first_param = |func_def: &FunctionDef| -> bool {
+                    let mut passing_mode = SelfPassingMode::None;
+
+                    let check_self_param = |func_def: &FunctionDef| -> SelfPassingMode {
                         if let Some((_, first_param_ty)) = func_def.params.first() {
-                            matches!(first_param_ty, Type::Pointer(_))
-                        } else {
-                            false
+                            let (inner_ty, is_pointer) = match first_param_ty {
+                                Type::Pointer(inner) => (inner.as_ref(), true),
+                                t => (t, false),
+                            };
+
+                            if let Type::Struct(path, _) = inner_ty {
+                                if let Some(struct_name) = path.last() {
+                                    if struct_name == &base_struct_name {
+                                        return if is_pointer {
+                                            SelfPassingMode::ByRef
+                                        } else {
+                                            SelfPassingMode::ByValue
+                                        };
+                                    }
+                                }
+                            }
                         }
+                        SelfPassingMode::None
                     };
 
                     if let Some(template) = self.generic_func_templates.get(&func_mangled_name) {
-                        if check_first_param(template) {
-                            should_pass_ref = true;
-                        }
+                        passing_mode = check_self_param(template);
                     } else if let Some(func) = self
                         .concrete_funcs
                         .iter()
                         .find(|f| f.name == func_mangled_name)
                     {
-                        if check_first_param(func) {
-                            should_pass_ref = true;
-                        }
+                        passing_mode = check_self_param(func);
                     } else if let Some(func) = self
                         .pending_funcs
                         .iter()
                         .find(|f| f.name == func_mangled_name)
                     {
-                        if check_first_param(func) {
-                            should_pass_ref = true;
-                        }
+                        passing_mode = check_self_param(func);
                     }
 
-                    if should_pass_ref {
-                        final_receiver = Expr::AddrOf(Box::new(final_receiver));
-                        final_args.push(final_receiver);
-                    } else {
-                        final_args.push(final_receiver);
+                    match passing_mode {
+                        SelfPassingMode::ByRef => {
+                            final_receiver = Expr::AddrOf(Box::new(final_receiver));
+                            final_args.push(final_receiver);
+                        }
+                        SelfPassingMode::ByValue => {
+                            final_args.push(final_receiver);
+                        }
+                        SelfPassingMode::None => {}
                     }
 
                     final_args.extend(args);

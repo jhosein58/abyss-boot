@@ -1,4 +1,5 @@
 use pre::arr::Arr;
+use pre::string::Str;
 
 pub struct File {
     handle: &FILE,
@@ -20,9 +21,9 @@ impl File {
         }
     }
 
-    -- fn open_read(path: &u8): File {
-    --     ret File.open(path, "rb")
-    -- }
+    fn open_read(path: &u8): File {
+        ret File.open(path, "rb")
+    }
 
     fn close(self: &File) {
         if self.is_open {
@@ -52,11 +53,11 @@ impl File {
         let s = self.len();
         
         let buffer = Arr.with_capacity::<u8>(s);
-        
+       
         let read_count = fread(buffer.ptr, 1, s, self.handle);
         
         buffer.len = read_count;
-
+        buffer.add(0)
         ret buffer;
     }
 
@@ -81,15 +82,17 @@ impl File {
         ret written;
     }
     
-    -- fn read_to_string(path: &u8): Arr<u8> {
-    --     let m = "rb";
-    --     let f = File.open(path, &m);
-    --     -- if f.is_open == 0 {
-    --     --     ret Arr.new::<u8>();
-    --     -- }
+    fn read_to_string(path: &u8): Str {
+    
+        let f = File.open(path, "rb");
+        if f.is_open == 0 {
+            ret Str.new();
+        }
         
-    --     -- let content = f.read_to_end();
-    --     -- f.close();
-    --     -- ret content;
-    -- }
+        let content = f.read_to_end();
+        f.close();
+        ret struct Str {
+            buf: content
+        };
+    }
 }
